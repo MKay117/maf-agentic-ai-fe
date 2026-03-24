@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Review Mode | Yes Arc Mate</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ============ CSS VARIABLES (THEMING) ============ */
+        :root {
+            /* --- Dark Theme (Default) --- */
+            --bg-body: #0a0e17;
+            --bg-card: #131a28;
+            --bg-header: rgba(10, 14, 23, 0.8);
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --border-color: rgba(255,255,255,0.05);
+            --icon-bg: rgba(255,255,255,0.05);
+            --card-shadow: none;
+            
+            /* Grid Background Pattern */
+            --grid-line: rgba(0, 242, 255, 0.03);
+            --vignette: rgba(10, 14, 23, 0.9);
+
+            /* Accents */
+            --neon-cyan: #00f2ff;
+            --neon-pink: #ff007f;
+            --neon-purple: #9d00ff;
+            --neon-green: #00ff9d;
+        }
+
+        /* --- Light Theme Overrides --- */
+        [data-theme="light"] {
+            --bg-body: #f0f2f5;
+            --bg-card: #ffffff;
+            --bg-header: rgba(255, 255, 255, 0.9);
+            --text-primary: #1a202c;
+            --text-secondary: #4a5568;
+            --border-color: rgba(0,0,0,0.08);
+            --icon-bg: #f7fafc;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+            /* Grid Background Pattern (Darker lines for light bg) */
+            --grid-line: rgba(0, 0, 0, 0.03);
+            --vignette: rgba(240, 242, 245, 0.8);
+            
+            /* Slightly darker accents for visibility on white */
+            --neon-cyan: #00b5bf;
+            --neon-purple: #8000d0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            height: 100vh; 
+            width: 100vw;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            
+            /* Dynamic Grid Background */
+            background-image: 
+                linear-gradient(var(--vignette), var(--vignette)),
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        /* ============ Header ============ */
+        .top-bar {
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            background: var(--bg-header);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .logo-text {
+            font-weight: 800; font-size: 1.1rem; letter-spacing: 1px;
+            /* Gradient Text Logic */
+            background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .theme-toggle-btn {
+            background: var(--icon-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            width: 35px; height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .theme-toggle-btn:hover {
+            transform: scale(1.1);
+            background: var(--border-color);
+        }
+
+        /* ============ Main Selection Area ============ */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            width: 100%;
+        }
+
+        .hero-text { text-align: center; margin-bottom: 25px; }
+        
+        .hero-title {
+            font-size: 2.2rem;
+            font-weight: 800; 
+            margin-bottom: 10px;
+            background: linear-gradient(to right, var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            /* Text shadow only in dark mode to avoid muddy look in light mode */
+            text-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+        }
+        [data-theme="light"] .hero-title {
+             text-shadow: none; /* Clean look for light mode */
+        }
+        
+        .hero-sub { 
+            color: var(--text-secondary); 
+            font-size: 0.95rem;
+            max-width: 600px; 
+            margin: 0 auto; 
+            line-height: 1.4; 
+        }
+
+        .cards-wrapper {
+            display: flex; 
+            gap: 30px;
+            width: 100%; 
+            max-width: 900px;
+            justify-content: center;
+            align-items: stretch;
+        }
+
+        /* ============ Selection Cards ============ */
+        .select-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 25px;
+            flex: 1;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+        }
+
+        /* Hover Effects */
+        .select-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+            transition: all 0.3s;
+        }
+
+        /* Card 1: Standard */
+        .card-standard:hover { transform: translateY(-5px); border-color: var(--neon-cyan); }
+        .card-standard::before { background: var(--neon-cyan); }
+        .card-standard:hover .icon-box { background: var(--neon-cyan); color: #fff; box-shadow: 0 0 20px var(--neon-cyan); }
+        .card-standard:hover .action-btn { background: var(--neon-cyan); color: #fff; }
+
+        /* Card 2: RAG */
+        .card-rag:hover { transform: translateY(-5px); border-color: var(--neon-purple); }
+        .card-rag::before { background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink)); }
+        .card-rag:hover .icon-box { background: var(--neon-purple); color: #fff; box-shadow: 0 0 20px var(--neon-purple); }
+        .card-rag:hover .action-btn { background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink)); color: #fff; }
+
+        /* Card Content */
+        .icon-box {
+            width: 50px; height: 50px; border-radius: 10px;
+            background: var(--icon-bg); color: var(--text-secondary);
+            font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
+            margin-bottom: 15px; transition: all 0.3s; 
+            border: 1px solid var(--border-color);
+        }
+
+        .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
+        .card-desc { color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 15px; line-height: 1.4; flex-grow: 1; }
+
+        .feature-list { 
+            width: 100%; text-align: left; 
+            margin-bottom: 15px; 
+            border-top: 1px solid var(--border-color); 
+            padding-top: 15px; 
+        }
+        .feature-item { 
+            display: flex; align-items: center; gap: 8px; 
+            margin-bottom: 8px; font-size: 0.75rem;
+            color: var(--text-secondary); 
+        }
+        .feature-item i { width: 16px; text-align: center; }
+        .card-standard .feature-item i { color: var(--neon-cyan); }
+        .card-rag .feature-item i { color: var(--neon-purple); }
+
+        .action-btn {
+            padding: 10px 20px; width: 100%;
+            border-radius: 6px; border: none;
+            background: var(--icon-bg); color: var(--text-primary);
+            font-weight: 600; font-size: 0.8rem; cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase; letter-spacing: 1px;
+            border: 1px solid transparent;
+        }
+
+        /* ============ Footer ============ */
+        .footer-info {
+            padding: 15px; 
+            text-align: center;
+            font-size: 0.7rem; color: var(--text-secondary); opacity: 0.5;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="logo-text"><i class="fas fa-cube"></i> YES ARC MATE</div>
+        
+        <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle Light/Dark Mode">
+            <i class="fas fa-sun" id="themeIcon"></i>
+        </button>
+    </div>
+
+    <div class="main-container">
+        
+        <div class="hero-text">
+            <h1 class="hero-title">Select Review Protocol</h1>
+            <p class="hero-sub">Choose the analysis depth for your architecture review.</p>
+        </div>
+
+        <div class="cards-wrapper">
+            
+            <div class="select-card card-standard" onclick="selectMode('standard')">
+                <div class="icon-box">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h2 class="card-title">Standard Review</h2>
+                <p class="card-desc">Rapid assessment using base LLM (GPT-4o). Good for general best practices.</p>
+                
+                <div class="feature-list">
+                    <div class="feature-item"><i class="fas fa-bolt"></i> Speed: Instant</div>
+                    <div class="feature-item"><i class="fas fa-globe"></i> Scope: Industry Standards</div>
+                    <div class="feature-item"><i class="fas fa-shield-alt"></i> Security: Basic Checks</div>
+                </div>
+
+                <button class="action-btn">Initialize</button>
+            </div>
+
+            <div class="select-card card-rag" onclick="selectMode('rag')">
+                <div class="icon-box">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <h2 class="card-title">Enterprise RAG</h2>
+                <p class="card-desc">Deep analysis using RAG. References RBI circulars and Bank policies.</p>
+                
+                <div class="feature-list">
+                    <div class="feature-item"><i class="fas fa-database"></i> Context: Vector DB</div>
+                    <div class="feature-item"><i class="fas fa-file-contract"></i> Scope: Bank Policy Specific</div>
+                    <div class="feature-item"><i class="fas fa-check-double"></i> Accuracy: High Precision</div>
+                </div>
+
+                <button class="action-btn">Initialize</button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="footer-info">
+        Authorized Personnel Only | Connection Secure (TLS 1.3) | v2.4.0-stable
+    </div>
+
+    <script>
+        // Check for saved preference or default to dark
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateIcon(savedTheme);
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateIcon(newTheme);
+        }
+
+        function updateIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            if (theme === 'dark') {
+                icon.className = 'fas fa-sun'; // Show sun when in dark mode (to switch to light)
+            } else {
+                icon.className = 'fas fa-moon'; // Show moon when in light mode (to switch to dark)
+            }
+        }
+
+        function selectMode(mode) {
+            const btn = event.currentTarget.querySelector('.action-btn');
+            const originalText = btn.innerText;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+            setTimeout(() => {
+                alert(`Routing to ${mode.toUpperCase()} Review Dashboard...`);
+                btn.innerText = originalText;
+            }, 500);
+        }
+    </script>
+</body>
+</html>

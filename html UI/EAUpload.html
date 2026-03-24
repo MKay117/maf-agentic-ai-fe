@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload & History | GenAI Governance Console</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ... [Styles matched to previous optimization] ... */
+        :root {
+            --bg-body: #0a0e17; --bg-card: #131a28; --bg-input: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255,255,255,0.05); --card-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            --text-primary: #ffffff; --text-secondary: #a0aec0; --text-muted: #6c7993;
+            --neon-cyan: #00f2ff; --neon-pink: #ff007f; --neon-purple: #9d00ff; --neon-green: #00ff9d; --neon-yellow: #ffea00; --neon-orange: #ff7b00;
+        }
+        [data-theme="light"] {
+            --bg-body: #f4f6f8; --bg-card: #ffffff; --bg-input: #f7fafc;
+            --border-color: rgba(0,0,0,0.08); --card-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            --text-primary: #1a202c; --text-secondary: #4a5568; --text-muted: #718096;
+            --neon-cyan: #00b5bf; --neon-pink: #d6006e; --neon-purple: #8000d0; --neon-green: #00c076;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-primary);
+            height: 100vh; width: 100vw; overflow: hidden; padding: 15px 20px;
+            display: flex; flex-direction: column; transition: background-color 0.3s ease, color 0.3s ease; font-size: 13px;
+        }
+        .dashboard-container { max-width: 1600px; width: 100%; margin: 0 auto; height: 100%; display: flex; flex-direction: column; }
+        .top-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .header-title { font-size: 1.3rem; font-weight: 700; background: linear-gradient(to right, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-subtitle { color: var(--text-secondary); font-size: 0.8rem; margin-top: 2px; }
+        .icon-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; box-shadow: var(--card-shadow); transition: all 0.3s ease; }
+        .icon-btn:hover { transform: scale(1.1); }
+        .back-btn:hover { color: var(--neon-cyan); border-color: var(--neon-cyan); }
+        .logout-btn:hover { color: var(--neon-pink); border-color: var(--neon-pink); background: rgba(255, 0, 127, 0.1); }
+        .header-controls { display: flex; gap: 10px; }
+        .workspace-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 15px; align-items: start; flex: 1; min-height: 0; }
+        .card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+        .section-title { font-size: 1rem; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); flex-shrink: 0; }
+        .section-title i { color: var(--neon-cyan); }
+        .upload-form-container { display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500; }
+        .form-control { width: 100%; padding: 10px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); font-family: 'Inter', sans-serif; transition: all 0.3s; font-size: 0.85rem; }
+        .form-control:focus { outline: none; border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 242, 255, 0.1); }
+        textarea.form-control { resize: none; }
+        .drop-zone { border: 2px dashed var(--border-color); border-radius: 8px; padding: 25px 20px; text-align: center; background: rgba(255,255,255,0.01); transition: all 0.3s; cursor: pointer; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-grow: 1; max-height: 200px; }
+        .drop-zone:hover { border-color: var(--neon-purple); background: rgba(157, 0, 255, 0.05); }
+        .dz-icon { font-size: 2rem; color: var(--text-muted); margin-bottom: 10px; transition: color 0.3s; }
+        .drop-zone:hover .dz-icon { color: var(--neon-purple); }
+        .dz-text { font-size: 0.85rem; color: var(--text-primary); font-weight: 600; margin-bottom: 2px; }
+        .dz-sub { font-size: 0.7rem; color: var(--text-secondary); }
+        .analyze-btn { width: 100%; padding: 12px; background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); border: none; border-radius: 6px; color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.3s; margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .analyze-btn:hover { box-shadow: 0 0 20px rgba(0, 242, 255, 0.3); transform: translateY(-2px); }
+        .history-wrapper { flex: 1; overflow-y: auto; min-height: 0; padding-right: 5px; }
+        .history-wrapper::-webkit-scrollbar { width: 6px; }
+        .history-wrapper::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        .history-wrapper::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .history-table { width: 100%; border-collapse: collapse; }
+        .history-table th { text-align: left; padding: 10px 12px; color: var(--text-muted); font-size: 0.75rem; border-bottom: 1px solid var(--border-color); text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; background: var(--bg-card); z-index: 10; }
+        .history-table td { padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.85rem; vertical-align: middle; }
+        .history-table tr:hover td { background: var(--bg-input); }
+        .status-badge { padding: 3px 8px; border-radius: 20px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }
+        .status-critical { background: rgba(255, 0, 127, 0.1); color: var(--neon-pink); border: 1px solid var(--neon-pink); }
+        .status-warning { background: rgba(255, 234, 0, 0.1); color: var(--neon-yellow); border: 1px solid var(--neon-yellow); }
+        .status-safe { background: rgba(0, 255, 157, 0.1); color: var(--neon-green); border: 1px solid var(--neon-green); }
+        .view-btn { color: var(--neon-cyan); text-decoration: none; font-weight: 600; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;}
+        .view-btn:hover { background: rgba(0, 242, 255, 0.1); }
+        .no-data { text-align: center; padding: 40px; color: var(--text-muted); font-size: 0.9rem; display: none; }
+        #liveFilterLabel { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); font-weight: 400; display: none; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @media (max-width: 900px) { body { overflow: auto; height: auto; } .workspace-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="top-header-row">
+        <div class="header-left">
+            <button class="icon-btn back-btn" onclick="goBack()" aria-label="Go Back">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div>
+                <h1 class="header-title">Initiate Architecture Review</h1>
+                <p class="header-subtitle">GenAI Governance Console</p>
+            </div>
+        </div>
+        <div class="header-controls">
+            <button class="icon-btn theme-btn" onclick="toggleTheme()" aria-label="Toggle Theme"><i class="fas fa-sun" id="themeIcon"></i></button>
+            <button class="icon-btn logout-btn" onclick="logout()" aria-label="Logout"><i class="fas fa-power-off"></i></button>
+        </div>
+    </div>
+
+    <div class="workspace-grid">
+        <div class="card">
+            <div class="section-title"><i class="fas fa-cloud-upload-alt"></i> New Analysis</div>
+            <form onsubmit="runAnalysis(event)" class="upload-form-container">
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">Application Name</label>
+                        <input type="text" class="form-control" id="appNameInput" placeholder="Start typing to search history..." onkeyup="filterHistory()" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description / Context</label>
+                        <textarea class="form-control" rows="2" placeholder="Brief description of the architecture changes..."></textarea>
+                    </div>
+                    <div class="form-group" style="display:flex; flex-direction:column; flex:1;">
+                        <label class="form-label">Artifacts (Diagrams, Code, Docs)</label>
+                        <div class="drop-zone" id="dropZone">
+                            <i class="fas fa-file-import dz-icon"></i>
+                            <div class="dz-text">Drag & Drop files here</div>
+                            <div class="dz-sub">Supported: .png, .jpg, .pdf, .json, .zip</div>
+                            <input type="file" id="fileInput" style="display: none;" multiple>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="analyze-btn" id="analyzeBtn">
+                    <i class="fas fa-microchip"></i> Run Architecture Review
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                <i class="fas fa-history"></i> Review History
+                <span id="liveFilterLabel"><i class="fas fa-filter" style="color:var(--neon-purple)"></i> Live Filter Active</span>
+            </div>
+            <div class="history-wrapper">
+                <table class="history-table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>App Name / Version</th>
+                            <th>Date</th>
+                            <th>Risk</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="history-row" data-app="Core Payment Gateway">
+                            <td><strong>Core Payment Gateway v2.1</strong><br><span style="font-size:0.7rem; color:var(--text-secondary)">Major Update</span></td>
+                            <td>Oct 24, 2023</td>
+                            <td><span class="status-badge status-critical">Critical</span></td>
+                            <td><a onclick="goToDetails()" class="view-btn">View <i class="fas fa-chevron-right"></i></a></td>
+                        </tr>
+                        <tr class="history-row" data-app="Core Payment Gateway">
+                            <td><strong>Core Payment Gateway v2.0</strong><br><span style="font-size:0.7rem; color:var(--text-secondary)">Feature Pack</span></td>
+                            <td>Sep 10, 2023</td>
+                            <td><span class="status-badge status-warning">Medium</span></td>
+                            <td><a onclick="goToDetails()" class="view-btn">View <i class="fas fa-chevron-right"></i></a></td>
+                        </tr>
+                        <tr class="history-row" data-app="Mobile Banking App">
+                            <td><strong>Mobile Banking App v4.2</strong><br><span style="font-size:0.7rem; color:var(--text-secondary)">UI Overhaul</span></td>
+                            <td>Oct 20, 2023</td>
+                            <td><span class="status-badge status-warning">Medium</span></td>
+                            <td><a onclick="goToDetails()" class="view-btn">View <i class="fas fa-chevron-right"></i></a></td>
+                        </tr>
+                        <tr class="history-row" data-app="Forex Trading Bot">
+                            <td><strong>Forex Trading Bot v1.0</strong><br><span style="font-size:0.7rem; color:var(--text-secondary)">Initial Launch</span></td>
+                            <td>Oct 12, 2023</td>
+                            <td><span class="status-badge status-critical">Critical</span></td>
+                            <td><a onclick="goToDetails()" class="view-btn">View <i class="fas fa-chevron-right"></i></a></td>
+                        </tr>
+                        <tr class="history-row" data-app="KYC Onboarding API">
+                            <td><strong>KYC Onboarding API v3.0</strong><br><span style="font-size:0.7rem; color:var(--text-secondary)">Compliance</span></td>
+                            <td>Oct 08, 2023</td>
+                            <td><span class="status-badge status-safe">Pass</span></td>
+                            <td><a onclick="goToDetails()" class="view-btn">View <i class="fas fa-chevron-right"></i></a></td>
+                        </tr>
+                        <tr class="history-row" data-app="Fraud Detection System">
+                            <td><strong>Fraud Detection System v2.5</strong><br><span style="font-size:0.7rem; color:var(--text-secondary)">AI Model</span></td>
+                            <td>Oct 01, 2023</td>
+                            <td><span class="status-badge status-warning">Medium</span></td>
+                            <td><a onclick="goToDetails()" class="view-btn">View <i class="fas fa-chevron-right"></i></a></td>
+                        </tr>
+                        <tr class="history-row" data-app="ATM Switch Controller">
+                            <td><strong>ATM Switch Controller v1.2</strong><br><span style="font-size:0.7rem; color:var(--text-secondary)">Stability</span></td>
+                            <td>Sep 28, 2023</td>
+                            <td><span class="status-badge status-critical">Critical</span></td>
+                            <td><a onclick="goToDetails()" class="view-btn">View <i class="fas fa-chevron-right"></i></a></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div id="noDataMessage" class="no-data">
+                    <i class="fas fa-search" style="font-size:2rem; margin-bottom:15px; display:block;"></i>
+                    No previous reviews found.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateIcon(savedTheme);
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateIcon(newTheme);
+    }
+    function updateIcon(theme) { document.getElementById('themeIcon').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'; }
+    function goBack() { window.location.href = 'EAReview.html'; }
+    function logout() { if(confirm("Logout?")) window.location.href = 'EALogin.html'; }
+    function goToDetails() { window.location.href = 'EAReviewDetails.html'; }
+
+    function filterHistory() {
+        const input = document.getElementById('appNameInput');
+        const filter = input.value.toLowerCase();
+        const rows = document.querySelectorAll('.history-row');
+        const noData = document.getElementById('noDataMessage');
+        const table = document.getElementById('historyTable');
+        const label = document.getElementById('liveFilterLabel');
+        
+        if(filter.length > 0) {
+            label.style.display = "inline-flex";
+            label.innerHTML = `<i class="fas fa-filter" style="color:var(--neon-purple); margin-right:5px;"></i> Live Filter: "${input.value}"`;
+        } else {
+            label.style.display = "none";
+        }
+
+        let visibleCount = 0;
+        rows.forEach(row => {
+            const appName = row.getAttribute('data-app').toLowerCase();
+            if (appName.includes(filter)) { row.style.display = ""; visibleCount++; } else { row.style.display = "none"; }
+        });
+
+        if (visibleCount === 0) { table.style.display = "none"; noData.style.display = "block"; } else { table.style.display = "table"; noData.style.display = "none"; }
+    }
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--neon-purple)'; dropZone.style.background = 'rgba(157, 0, 255, 0.1)'; });
+    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--border-color)'; dropZone.style.background = 'transparent'; });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--neon-green)'; dropZone.style.background = 'rgba(0, 255, 157, 0.05)'; dropZone.querySelector('.dz-text').innerText = `${e.dataTransfer.files.length} file(s) staged`; });
+    fileInput.addEventListener('change', () => { if(fileInput.files.length > 0) dropZone.querySelector('.dz-text').innerText = `${fileInput.files.length} file(s) staged`; });
+
+    function runAnalysis(e) {
+        e.preventDefault();
+        const btn = document.getElementById('analyzeBtn');
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+        btn.style.opacity = '0.8';
+        setTimeout(() => { window.location.href = 'EAReviewDetails.html'; }, 1500);
+    }
+</script>
+</body>
+</html>

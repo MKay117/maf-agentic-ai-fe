@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Login | GenAI Governance Console</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ============ CSS VARIABLES (THEMING) ============ */
+        :root {
+            --bg-body: #0a0e17; --bg-card: #131a28; --bg-input: rgba(255, 255, 255, 0.05);
+            --text-primary: #ffffff; --text-secondary: #a0aec0; --border-color: rgba(255,255,255,0.05);
+            --card-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            --grid-line: rgba(0, 242, 255, 0.03); --vignette: rgba(10, 14, 23, 0.9);
+            --neon-cyan: #00f2ff; --neon-purple: #9d00ff; --neon-pink: #ff007f;
+        }
+        [data-theme="light"] {
+            --bg-body: #f0f2f5; --bg-card: #ffffff; --bg-input: #f7fafc;
+            --text-primary: #1a202c; --text-secondary: #4a5568; --border-color: rgba(0,0,0,0.1);
+            --card-shadow: 0 10px 40px -10px rgba(0,0,0,0.15);
+            --grid-line: rgba(0, 0, 0, 0.03); --vignette: rgba(240, 242, 245, 0.85);
+            --neon-cyan: #00b5bf; --neon-purple: #8000d0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-primary);
+            height: 100vh; width: 100vw; overflow: hidden; display: flex; align-items: center; justify-content: center;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            background-image: linear-gradient(var(--vignette), var(--vignette)), linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+        }
+        .theme-toggle-wrapper { position: absolute; top: 20px; right: 20px; z-index: 100; }
+        .theme-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: all 0.3s ease; }
+        .theme-btn:hover { transform: scale(1.1); }
+        .login-container { width: 100%; max-width: 420px; padding: 20px; animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .login-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 40px; box-shadow: var(--card-shadow); position: relative; overflow: hidden; }
+        .login-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); }
+        .logo-area { text-align: center; margin-bottom: 30px; }
+        .logo-icon { font-size: 2.5rem; margin-bottom: 10px; background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .app-name { font-size: 1.3rem; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 5px; text-transform: uppercase; }
+        .app-sub { font-size: 0.85rem; color: var(--text-secondary); }
+        .input-group { margin-bottom: 20px; position: relative; }
+        .input-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px 15px 12px 40px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 0.95rem; font-family: 'Inter', sans-serif; transition: all 0.3s; }
+        .form-control:focus { outline: none; border-color: var(--neon-cyan); box-shadow: 0 0 15px rgba(0, 242, 255, 0.1); background: var(--bg-card); }
+        .input-icon { position: absolute; left: 15px; top: 38px; color: var(--text-secondary); font-size: 0.9rem; transition: color 0.3s; }
+        .form-control:focus + .input-icon, .form-control:not(:placeholder-shown) + .input-icon { color: var(--neon-cyan); }
+        .login-btn { width: 100%; padding: 14px; background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); border: none; border-radius: 8px; color: #ffffff; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s; margin-top: 10px; box-shadow: 0 4px 15px rgba(0, 242, 255, 0.2); }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(157, 0, 255, 0.3); }
+        .footer-links { margin-top: 25px; text-align: center; font-size: 0.8rem; color: var(--text-secondary); }
+        .footer-links a { color: var(--neon-cyan); text-decoration: none; font-weight: 500; }
+        .footer-links a:hover { text-decoration: underline; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="theme-toggle-wrapper">
+        <button class="theme-btn" onclick="toggleTheme()" aria-label="Toggle Theme">
+            <i class="fas fa-sun" id="themeIcon"></i>
+        </button>
+    </div>
+
+    <div class="login-container">
+        <div class="login-card">
+            
+            <div class="logo-area">
+                <i class="fas fa-cube logo-icon"></i>
+                <div class="app-name">GenAI Governance Console</div>
+                <div class="app-sub">Enterprise Architecture & Risk Assessment</div>
+            </div>
+
+            <form onsubmit="handleLogin(event)">
+                <div class="input-group">
+                    <label class="input-label">Enterprise ID</label>
+                    <input type="text" class="form-control" placeholder="Ex: ADM_0921" required>
+                    <i class="fas fa-user-circle input-icon"></i>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Password</label>
+                    <input type="password" class="form-control" placeholder="••••••••" required>
+                    <i class="fas fa-lock input-icon"></i>
+                </div>
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <span id="btnText">Secure Login</span>
+                </button>
+            </form>
+
+            <div class="footer-links">
+                Forgot access? <a href="#">Contact Admin</a>
+                <br><br>
+                <span style="opacity:0.6; font-size:0.75rem;">Authorized Personnel Only | v2.5.0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateIcon(savedTheme);
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateIcon(newTheme);
+        }
+
+        function updateIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('btnText');
+            btnText.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Authenticating...';
+            btn.style.opacity = "0.8";
+            setTimeout(() => {
+                window.location.href = 'EAReview.html';
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

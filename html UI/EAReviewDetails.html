@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenAI Governance Console | Dashboard</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ============ THEME ENGINE ============ */
+        :root {
+            --bg-body: #0a0e17; --bg-card: #131a28; --border-color: rgba(255,255,255,0.05);
+            --card-shadow: 0 4px 10px rgba(0,0,0,0.2); --card-hover-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            --text-primary: #ffffff; --text-secondary: #a0aec0; --text-muted: #6c7993;
+            --neon-cyan: #00f2ff; --neon-pink: #ff007f; --neon-purple: #9d00ff;
+            --neon-green: #00ff9d; --neon-yellow: #ffea00; --neon-orange: #ff7b00; --neon-blue: #2979ff;
+            --chart-grid: rgba(255, 255, 255, 0.1); --chart-text: #a0aec0;
+            --finding-bg-overlay: var(--bg-card); --ref-box-bg: rgba(0,0,0,0.2); --remedy-bg: rgba(0, 0, 0, 0.2);
+        }
+        [data-theme="light"] {
+            --bg-body: #f4f6f8; --bg-card: #ffffff; --border-color: rgba(0,0,0,0.08);
+            --card-shadow: 0 2px 6px rgba(0,0,0,0.05); --card-hover-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            --text-primary: #1a202c; --text-secondary: #4a5568; --text-muted: #718096;
+            --neon-cyan: #00b5bf; --neon-green: #00c076; --neon-yellow: #d6c400; --neon-blue: #0063cc;
+            --chart-grid: rgba(0, 0, 0, 0.05); --chart-text: #4a5568;
+            --finding-bg-overlay: #ffffff; --ref-box-bg: #f7fafc; --remedy-bg: #f0f4f8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-primary);
+            padding: 10px 20px; min-height: 100vh; transition: background-color 0.3s ease; font-size: 13px;
+        }
+
+        .dashboard-container { max-width: 100%; margin: 0 auto; position: relative; padding-top: 10px; padding-bottom: 60px; }
+
+        /* Header & Nav */
+        .top-header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-info { display: flex; flex-direction: column; margin-left: 5px; }
+        .header-controls { display: flex; gap: 10px; }
+        .header-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 2px; background: linear-gradient(to right, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-subtitle { color: var(--text-secondary); font-size: 0.85rem; }
+        .icon-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); width: 35px; height: 35px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; box-shadow: var(--card-shadow); transition: all 0.3s ease; }
+        .icon-btn:hover { transform: scale(1.1); }
+
+        /* Stats Grid */
+        .top-stats-grid { display: grid; grid-template-columns: 220px repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 15px; min-height: 90px; }
+        .card { background-color: var(--bg-card); border-radius: 10px; padding: 10px 15px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); display: flex; flex-direction: column; position: relative; }
+        
+        /* KPI Cards */
+        .score-card { justify-content: flex-start; overflow: hidden; }
+        .score-header { display:flex; justify-content:space-between; align-items:center; }
+        .score-title { font-size:0.8rem; font-weight: 600; color: var(--text-secondary); }
+        .trend-badge { background:rgba(255, 0, 127, 0.1); color:#ff007f; padding:1px 5px; border-radius:4px; font-size:0.65rem; font-weight:600; }
+        .gauge-container { position: relative; width: 100%; height: 60px; display: flex; justify-content: center; align-items: flex-end; margin-top: auto; margin-bottom: -5px; }
+        .gauge-overlay { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); text-align: center; }
+        .gauge-value { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); text-shadow: 0 0 10px rgba(0, 242, 255, 0.2); line-height: 0.9; }
+        .gauge-label { font-size: 0.6rem; color: var(--neon-yellow); font-weight:700; text-transform:uppercase; }
+
+        .kpi-card { justify-content: center; padding: 12px; position: relative; overflow: hidden; }
+        .kpi-card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; }
+        .kpi-card.critical::before { background: var(--neon-pink); }
+        .kpi-card.high::before { background: var(--neon-orange); }
+        .kpi-card.medium::before { background: var(--neon-yellow); }
+        .kpi-card.low::before { background: var(--neon-blue); }
+        .kpi-card.compliance::before { background: var(--neon-green); }
+        .kpi-content { display: flex; flex-direction: column; gap: 4px; z-index: 2; }
+        .kpi-header { display: flex; justify-content: space-between; align-items: center; }
+        .kpi-title { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+        .kpi-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+        .kpi-card.critical .kpi-value { color: var(--neon-pink); }
+        .kpi-card.high .kpi-value { color: var(--neon-orange); }
+        .kpi-card.medium .kpi-value { color: var(--neon-yellow); }
+        .kpi-card.low .kpi-value { color: var(--neon-blue); }
+        .kpi-card.compliance .kpi-value { color: var(--neon-green); }
+        .kpi-bg-icon { position: absolute; right: -5px; bottom: -10px; font-size: 3rem; opacity: 0.05; z-index: 1; transform: rotate(-15deg); color: var(--text-primary); }
+
+        /* Summary */
+        .summary-card { margin-bottom: 15px; padding: 12px 15px; background: linear-gradient(90deg, rgba(157, 0, 255, 0.05) 0%, rgba(0, 0, 0, 0) 100%); border-left: 3px solid var(--neon-purple); justify-content: center; }
+        .summary-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .summary-header h3 { font-size: 0.95rem; margin: 0; color: var(--text-primary); font-weight: 700; }
+        .summary-text { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; margin: 0; }
+
+        /* Charts */
+        .charts-main-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .chart-card-header { display: flex; justify-content: space-between; margin-bottom: 10px; color: var(--text-primary); font-weight: 600; font-size: 0.95rem; }
+        .radar-card { height: 450px; } .radar-container { flex: 1; width: 100%; min-height: 0; position: relative; }
+        .right-charts-stack { display: flex; flex-direction: column; gap: 15px; height: 450px; } .doughnuts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; height: 160px; }
+        .bar-container { flex: 1; display: flex; flex-direction: column; } .chart-wrapper { position: relative; flex: 1; min-height: 0; width: 100%; }
+
+        /* Findings Header & Layout Controls */
+        .findings-section-header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; 
+        }
+        .findings-title-group { display: flex; align-items: center; gap: 10px; }
+        .section-title { font-size: 1rem; color: var(--text-primary); font-weight: 700; border-left: 3px solid var(--neon-purple); padding-left: 8px; }
+        
+        .findings-controls { display: flex; align-items: center; gap: 12px; }
+
+        /* Layout Toggle */
+        .layout-toggle {
+            display: flex; background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 6px; overflow: hidden;
+        }
+        .layout-btn-opt {
+            background: transparent; border: none; color: var(--text-secondary);
+            padding: 6px 12px; cursor: pointer; font-size: 0.85rem; border-right: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+        .layout-btn-opt:last-child { border-right: none; }
+        .layout-btn-opt:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+        .layout-btn-opt.active { background: rgba(0, 242, 255, 0.1); color: var(--neon-cyan); }
+
+        .show-all-btn { background: rgba(0, 242, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 5px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.75rem; transition: all 0.2s; display: flex; align-items: center; gap: 6px; height: 32px; }
+        .show-all-btn:hover { background: var(--neon-cyan); color: #000; }
+
+        /* Findings Grid */
+        .findings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; transition: all 0.3s ease; }
+        
+        /* Layout Variants */
+        .findings-grid.layout-list { grid-template-columns: 1fr; }
+        .findings-grid.layout-list .finding-card { min-height: 80px; flex-direction: row; align-items: center; }
+        .findings-grid.layout-list .fc-desc { -webkit-line-clamp: 1; margin: 0 15px; flex: 1; }
+        .findings-grid.layout-list .fc-header { width: 250px; flex-shrink: 0; }
+        .findings-grid.layout-list .fc-meta { margin-top: 0; padding-top: 0; width: 150px; flex-shrink: 0; justify-content: flex-end; }
+
+        .findings-grid.layout-dense { grid-template-columns: repeat(4, 1fr); }
+        .findings-grid.layout-dense .finding-card { min-height: 120px; padding: 10px; }
+        .findings-grid.layout-dense .fc-header { font-size: 0.85rem; }
+        .findings-grid.layout-dense .fc-desc { font-size: 0.75rem; -webkit-line-clamp: 2; }
+
+        .finding-card { 
+            background-color: var(--bg-card); border-radius: 10px; padding: 15px; border: 1px solid; 
+            display: flex; flex-direction: column; gap: 8px; 
+            transition: all 0.3s ease; animation: fadeIn 0.5s ease; box-shadow: var(--card-shadow);
+            cursor: pointer; position: relative; height: 100%; min-height: 140px; justify-content: flex-start;
+        }
+        .finding-card:hover { transform: translateY(-2px); box-shadow: var(--card-hover-shadow); }
+        .hidden-card { display: none !important; }
+
+        /* Card Colors */
+        .fc-critical { border-color: var(--neon-pink); background: linear-gradient(145deg, rgba(255, 0, 127, 0.10) 0%, var(--finding-bg-overlay) 100%); }
+        .fc-high { border-color: var(--neon-orange); background: linear-gradient(145deg, rgba(255, 123, 0, 0.10) 0%, var(--finding-bg-overlay) 100%); }
+        .fc-medium { border-color: var(--neon-yellow); background: linear-gradient(145deg, rgba(255, 234, 0, 0.08) 0%, var(--finding-bg-overlay) 100%); }
+        .fc-low { border-color: var(--neon-blue); background: linear-gradient(145deg, rgba(41, 121, 255, 0.08) 0%, var(--finding-bg-overlay) 100%); }
+        .fc-compliant { border-color: var(--neon-green); background: linear-gradient(145deg, rgba(0, 255, 157, 0.08) 0%, var(--finding-bg-overlay) 100%); }
+
+        .fc-header { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.95rem; justify-content: space-between; }
+        .fc-critical .fc-header { color: var(--neon-pink); }
+        .fc-high .fc-header { color: var(--neon-orange); }
+        .fc-medium .fc-header { color: var(--neon-yellow); }
+        .fc-low .fc-header { color: var(--neon-blue); }
+        .fc-compliant .fc-header { color: var(--neon-green); }
+
+        .fc-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; flex-grow: 0; } 
+        .fc-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 10px; margin-top: auto; padding-top: 10px; }
+
+        /* Hidden Content for Modal */
+        .remedy-content-hidden { display: none; }
+
+        /* ============ MODAL STYLES ============ */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);
+            z-index: 2000; display: none; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        
+        .modal-card {
+            background: var(--bg-card); width: 90%; max-width: 600px;
+            border-radius: 12px; border: 1px solid var(--border-color);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: translateY(30px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden; display: flex; flex-direction: column;
+        }
+        .modal-overlay.active .modal-card { transform: translateY(0); }
+        
+        .modal-header { padding: 20px 25px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); }
+        .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+        .close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; transition: color 0.2s; }
+        .close-btn:hover { color: var(--text-primary); }
+        
+        .modal-body { padding: 25px; color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem; }
+        .modal-body ul { margin-top: 10px; padding-left: 20px; }
+        .modal-body li { margin-bottom: 8px; }
+        
+        .modal-footer { padding: 15px 25px; background: rgba(0,0,0,0.2); text-align: right; border-top: 1px solid var(--border-color); }
+        .action-btn-modal { background: var(--neon-cyan); color: #000; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+        .action-btn-modal:hover { opacity: 0.9; }
+
+        #scrollTopBtn { position: fixed; bottom: 30px; right: 30px; z-index: 999; width: 45px; height: 45px; border-radius: 50%; background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(5px); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3); display: none; align-items: center; justify-content: center; transition: all 0.3s ease; }
+        #scrollTopBtn:hover { transform: translateY(-5px); background: var(--neon-cyan); color: #000; }
+        
+        @media (max-width: 1200px) { .top-stats-grid { grid-template-columns: 220px repeat(auto-fit, minmax(130px, 1fr)); } .charts-main-grid { grid-template-columns: 1fr; } .findings-grid { grid-template-columns: 1fr 1fr; } .findings-grid.layout-dense { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 768px) { .top-stats-grid { grid-template-columns: 1fr 1fr; } .score-card { grid-column: span 2; } .findings-grid { grid-template-columns: 1fr !important; } }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    
+    <div class="top-header-row">
+        <div class="header-left">
+            <button class="icon-btn home-btn" onclick="goHome()" aria-label="Home"><i class="fas fa-home"></i></button>
+            <button class="icon-btn back-btn" onclick="goBack()" aria-label="Back"><i class="fas fa-arrow-left"></i></button>
+            <div class="header-info">
+                <h1 class="header-title">GenAI Governance Console</h1>
+                <p class="header-subtitle">Target: Core Banking Payment Gateway (AWS) | RAG Model: GPT-4o-Fin</p>
+            </div>
+        </div>
+        <div class="header-controls">
+            <button class="icon-btn theme-btn" onclick="toggleTheme()" aria-label="Toggle Theme"><i class="fas fa-sun" id="themeIcon"></i></button>
+            <button class="icon-btn logout-btn" onclick="logout()" aria-label="Logout"><i class="fas fa-power-off"></i></button>
+        </div>
+    </div>
+
+    <div class="top-stats-grid">
+        <div class="card score-card clickable-card" onclick="filterFindings('all')">
+            <div class="score-header"><h3 class="score-title">Health Score</h3><span class="trend-badge"><i class="fas fa-arrow-down"></i> 2.4%</span></div>
+            <div class="gauge-container"><canvas id="scoreChart"></canvas><div class="gauge-overlay"><div class="gauge-value">68</div><div class="gauge-label">Moderate</div></div></div>
+        </div>
+        <div class="card kpi-card critical clickable-card" onclick="filterFindings('critical')">
+            <div class="kpi-content"><div class="kpi-header"><span class="kpi-title">Critical</span><i class="fas fa-shield-alt" style="color:var(--neon-pink)"></i></div><div class="kpi-value">5</div><div class="kpi-sub">Immediate Action</div></div><i class="fas fa-exclamation-circle kpi-bg-icon"></i>
+        </div>
+        <div class="card kpi-card high clickable-card" onclick="filterFindings('high')">
+            <div class="kpi-content"><div class="kpi-header"><span class="kpi-title">High</span><i class="fas fa-fire" style="color:var(--neon-orange)"></i></div><div class="kpi-value">12</div><div class="kpi-sub">Urgent Review</div></div><i class="fas fa-fire kpi-bg-icon"></i>
+        </div>
+        <div class="card kpi-card medium clickable-card" onclick="filterFindings('medium')">
+            <div class="kpi-content"><div class="kpi-header"><span class="kpi-title">Medium</span><i class="fas fa-exclamation-triangle" style="color:var(--neon-yellow)"></i></div><div class="kpi-value">8</div><div class="kpi-sub">Schedule Fix</div></div><i class="fas fa-exclamation kpi-bg-icon"></i>
+        </div>
+        <div class="card kpi-card low clickable-card" onclick="filterFindings('low')">
+            <div class="kpi-content"><div class="kpi-header"><span class="kpi-title">Low</span><i class="fas fa-info-circle" style="color:var(--neon-blue)"></i></div><div class="kpi-value">6</div><div class="kpi-sub">Best Practice</div></div><i class="fas fa-info kpi-bg-icon"></i>
+        </div>
+        <div class="card kpi-card compliance clickable-card" onclick="filterFindings('compliant')">
+            <div class="kpi-content"><div class="kpi-header"><span class="kpi-title">RBI Ready</span><i class="fas fa-university" style="color:var(--neon-green)"></i></div><div class="kpi-value">75%</div><div class="kpi-sub">Data Localized</div></div><i class="fas fa-check-circle kpi-bg-icon"></i>
+        </div>
+    </div>
+
+    <div class="card summary-card">
+        <div class="summary-header"><i class="fas fa-lightbulb" style="color:var(--neon-purple); font-size:1rem;"></i><h3>Executive Insight</h3></div>
+        <p class="summary-text">The architecture demonstrates strong alignment with RBI Data Residency norms. However, <strong>critical security gaps</strong> were detected in the Network Layer and Encryption Standards. Immediate remediation recommended.</p>
+    </div>
+
+    <div class="charts-main-grid">
+        <div class="card radar-card">
+            <div class="chart-card-header"><span>Architecture Domain Scoring</span><i class="fas fa-radar" style="color: var(--neon-purple)"></i></div>
+            <div class="radar-container"><canvas id="radarChart"></canvas></div>
+        </div>
+        <div class="right-charts-stack">
+            <div class="doughnuts-row">
+                <div class="card" style="display:flex; flex-direction:column; align-items:center; padding:10px; justify-content:center;"><div style="margin-bottom:5px; font-weight:600; color:var(--text-primary); font-size:0.85rem;">Severity Breakdown</div><div style="height:110px; width:110px;"><canvas id="severityDoughnut"></canvas></div></div>
+                <div class="card" style="display:flex; flex-direction:column; align-items:center; padding:10px; justify-content:center;"><div style="margin-bottom:5px; font-weight:600; color:var(--text-primary); font-size:0.85rem;">Compliance Checks</div><div style="height:110px; width:110px;"><canvas id="complianceDoughnut"></canvas></div></div>
+            </div>
+            <div class="card bar-container">
+                 <div class="chart-card-header"><span>Risk Distribution by Domain</span></div>
+                <div class="chart-wrapper"><canvas id="barChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="findings-section-header">
+        <div class="findings-title-group"><div class="section-title" id="findingsTitle">Detailed GenAI Review Findings</div><span style="font-size:0.75rem; color:var(--text-muted);">(Click Cards to View Remedy)</span></div>
+        <div class="findings-controls">
+            <div class="layout-toggle">
+                <button class="layout-btn-opt active" onclick="setLayout('grid')" title="Grid View"><i class="fas fa-th-large"></i></button>
+                <button class="layout-btn-opt" onclick="setLayout('list')" title="List View"><i class="fas fa-th-list"></i></button>
+                <button class="layout-btn-opt" onclick="setLayout('dense')" title="Dense View"><i class="fas fa-border-all"></i></button>
+            </div>
+            <button class="show-all-btn" onclick="filterFindings('all')"><i class="fas fa-sync-alt"></i> Show All Findings</button>
+        </div>
+    </div>
+    
+    <div class="findings-grid" id="findingsGrid">
+        <div class="finding-card fc-critical" onclick="showRemedyModal(this)" data-category="critical">
+            <div class="fc-header"><span><i class="fas fa-ban"></i> Critical: Network Security</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Found Security Group <code>sg-payment-prod</code> allowing ingress on Port 22 (SSH) from 0.0.0.0/0.</div>
+            <div class="fc-meta"><span><i class="fas fa-cube"></i> EC2/VPC</span><span><i class="fas fa-bolt"></i> High Impact</span></div>
+            <div class="remedy-content-hidden">
+                <p><strong>Violation:</strong> Bank InfoSec Policy v2.1 (No Public SSH).</p>
+                <p><strong>Remediation Steps:</strong></p><ul><li>Navigate to VPC Console > Security Groups.</li><li>Edit <code>sg-payment-prod</code> Inbound Rules.</li><li>Remove rule for Port 22. Use AWS Systems Manager (SSM).</li></ul>
+            </div>
+        </div>
+        <div class="finding-card fc-critical" onclick="showRemedyModal(this)" data-category="critical">
+            <div class="fc-header"><span><i class="fas fa-user-shield"></i> Critical: Root Account</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">AWS Root Account access keys were used for a console login event yesterday.</div>
+            <div class="fc-meta"><span><i class="fas fa-id-card"></i> IAM</span><span><i class="fas fa-bolt"></i> Critical</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Delete Root Access Keys immediately. Enable MFA.</p></div>
+        </div>
+        <div class="finding-card fc-critical" onclick="showRemedyModal(this)" data-category="critical">
+            <div class="fc-header"><span><i class="fas fa-globe"></i> Critical: Public S3 Bucket</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">S3 Bucket <code>confidential-reports-archive</code> has 'Public Read' access enabled.</div>
+            <div class="fc-meta"><span><i class="fas fa-database"></i> S3</span><span><i class="fas fa-bolt"></i> Data Leak</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Enable "Block all public access" in S3 Console permissions.</p></div>
+        </div>
+        <div class="finding-card fc-critical" onclick="showRemedyModal(this)" data-category="critical">
+            <div class="fc-header"><span><i class="fas fa-key"></i> Critical: MFA Disabled</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">3 Admin users and the Root Account do not have Multi-Factor Authentication enabled.</div>
+            <div class="fc-meta"><span><i class="fas fa-users"></i> IAM</span><span><i class="fas fa-bolt"></i> Auth</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Enforce IAM Policy `DenyAllExceptMFASetup`.</p></div>
+        </div>
+        <div class="finding-card fc-critical" onclick="showRemedyModal(this)" data-category="critical">
+            <div class="fc-header"><span><i class="fas fa-shield-virus"></i> Critical: API Rate Limiting</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">GenAI inference endpoints lack WAF rate limiting rules, exposing risk of DoS attacks.</div>
+            <div class="fc-meta"><span><i class="fas fa-server"></i> API Gateway</span><span><i class="fas fa-bomb"></i> Availability</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Attach AWS WAF. Configure Rate-based rule (limit 2000 req/5min).</p></div>
+        </div>
+
+        <div class="finding-card fc-high" onclick="showRemedyModal(this)" data-category="high">
+            <div class="fc-header"><span><i class="fas fa-lock-open"></i> High: Encryption Missing</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">S3 buckets with transaction logs (PII) are not using SSE-KMS with CMK.</div>
+            <div class="fc-meta"><span><i class="fas fa-database"></i> S3</span><span><i class="fas fa-file-invoice"></i> Compliance</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Create CMK in KMS. Update S3 Default Encryption to use CMK ARN.</p></div>
+        </div>
+        <div class="finding-card fc-high" onclick="showRemedyModal(this)" data-category="high">
+            <div class="fc-header"><span><i class="fas fa-globe-asia"></i> High: RBI Data Masking</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Log streams in CloudWatch contain unmasked credit card numbers (PAN) in debug traces.</div>
+            <div class="fc-meta"><span><i class="fas fa-eye-slash"></i> Privacy</span><span><i class="fas fa-university"></i> RBI</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Implement log masking in application logger or CloudWatch.</p></div>
+        </div>
+        <div class="finding-card fc-high" onclick="showRemedyModal(this)" data-category="high">
+            <div class="fc-header"><span><i class="fas fa-server"></i> High: Single AZ Database</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Primary RDS instance deployed in single AZ. Multi-AZ is disabled.</div>
+            <div class="fc-meta"><span><i class="fas fa-database"></i> RDS</span><span><i class="fas fa-heartbeat"></i> Resilience</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Modify RDS Instance -> Enable "Multi-AZ Deployment".</p></div>
+        </div>
+        <div class="finding-card fc-high" onclick="showRemedyModal(this)" data-category="high">
+            <div class="fc-header"><span><i class="fas fa-robot"></i> High: Prompt Injection Risk</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">GenAI Chat interface lacks input validation/sanitization layer.</div>
+            <div class="fc-meta"><span><i class="fas fa-brain"></i> LLM</span><span><i class="fas fa-bug"></i> Security</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Implement NeMo Guardrails. Sanitize input delimiters.</p></div>
+        </div>
+        <div class="finding-card fc-high" onclick="showRemedyModal(this)" data-category="high">
+            <div class="fc-header"><span><i class="fas fa-code"></i> High: Hardcoded Secrets</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Database password found in plain text within Lambda env variables.</div>
+            <div class="fc-meta"><span><i class="fas fa-cube"></i> Lambda</span><span><i class="fas fa-user-secret"></i> Credential</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Migrate to AWS Secrets Manager. Update Lambda code.</p></div>
+        </div>
+        <div class="finding-card fc-high" onclick="showRemedyModal(this)" data-category="high">
+            <div class="fc-header"><span><i class="fas fa-exclamation-triangle"></i> High: Model Hallucination</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">No guardrails detected to validate factual accuracy of LLM responses.</div>
+            <div class="fc-meta"><span><i class="fas fa-magic"></i> Quality</span><span><i class="fas fa-thumbs-down"></i> Trust</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Implement RAG citation check. Set temperature to 0 for facts.</p></div>
+        </div>
+        <div class="finding-card fc-high" onclick="showRemedyModal(this)" data-category="high">
+            <div class="fc-header"><span><i class="fas fa-database"></i> High: PII in Training Data</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Fine-tuning dataset in S3 contains unredacted customer names.</div>
+            <div class="fc-meta"><span><i class="fas fa-user-lock"></i> Privacy</span><span><i class="fas fa-file-contract"></i> GDPR</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Run Macie. Scrub PII from dataset. Retrain model.</p></div>
+        </div>
+
+        <div class="finding-card fc-medium" onclick="showRemedyModal(this)" data-category="medium">
+            <div class="fc-header"><span><i class="fas fa-history"></i> Medium: RBI Audit Trails</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">App logs retention is set to 90 days. RBI mandates 10 years.</div>
+            <div class="fc-meta"><span><i class="fas fa-archive"></i> Retention</span><span><i class="fas fa-university"></i> RBI</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Set S3 Lifecycle to move logs to Glacier after 90 days (10 yr retention).</p></div>
+        </div>
+        <div class="finding-card fc-medium" onclick="showRemedyModal(this)" data-category="medium">
+            <div class="fc-header"><span><i class="fas fa-plug"></i> Medium: Shadow API</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Undocumented API call to `api.forex-rate-test.io` detected.</div>
+            <div class="fc-meta"><span><i class="fas fa-cloud"></i> EKS</span><span><i class="fas fa-list-ul"></i> Policy</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Update Egress Filtering. Register vendor if valid.</p></div>
+        </div>
+        <div class="finding-card fc-medium" onclick="showRemedyModal(this)" data-category="medium">
+            <div class="fc-header"><span><i class="fas fa-clock"></i> Medium: Stale IAM Keys</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">5 IAM Users have access keys older than 90 days without rotation.</div>
+            <div class="fc-meta"><span><i class="fas fa-users"></i> IAM</span><span><i class="fas fa-sync"></i> Rotation</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Automate key rotation with AWS Config. Deactivate old keys.</p></div>
+        </div>
+        <div class="finding-card fc-medium" onclick="showRemedyModal(this)" data-category="medium">
+            <div class="fc-header"><span><i class="fas fa-network-wired"></i> Medium: Default VPC</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Production EC2 instances are running in the Default VPC.</div>
+            <div class="fc-meta"><span><i class="fas fa-project-diagram"></i> VPC</span><span><i class="fas fa-shield-alt"></i> Isolation</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Migrate instances to a custom VPC with Private Subnets.</p></div>
+        </div>
+        <div class="finding-card fc-medium" onclick="showRemedyModal(this)" data-category="medium">
+            <div class="fc-header"><span><i class="fas fa-money-bill-wave"></i> Medium: Oversized Instances</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Model inference instances (g5.4xlarge) show <10% utilization.</div>
+            <div class="fc-meta"><span><i class="fas fa-chart-line"></i> Cost</span><span><i class="fas fa-dollar-sign"></i> Waste</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Downsize to g5.xlarge. Configure Auto Scaling.</p></div>
+        </div>
+        <div class="finding-card fc-medium" onclick="showRemedyModal(this)" data-category="medium">
+            <div class="fc-header"><span><i class="fas fa-tachometer-alt"></i> Medium: Model Drift</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">No automated monitoring configured to detect concept drift.</div>
+            <div class="fc-meta"><span><i class="fas fa-bell"></i> MLOps</span><span><i class="fas fa-chart-area"></i> Perf</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Enable SageMaker Model Monitor. Set alarms.</p></div>
+        </div>
+
+        <div class="finding-card fc-low" onclick="showRemedyModal(this)" data-category="low">
+            <div class="fc-header"><span><i class="fas fa-tag"></i> Low: Incomplete Tagging</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Several EC2 instances are missing the 'CostCenter' tag.</div>
+            <div class="fc-meta"><span><i class="fas fa-tags"></i> FinOps</span><span><i class="fas fa-info-circle"></i> Info</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Use AWS Tag Editor to bulk apply tags. Update IaC.</p></div>
+        </div>
+        <div class="finding-card fc-low" onclick="showRemedyModal(this)" data-category="low">
+            <div class="fc-header"><span><i class="fas fa-stopwatch"></i> Low: Long Lambda Timeout</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Non-critical Lambda functions have timeout set to max (15 mins).</div>
+            <div class="fc-meta"><span><i class="fas fa-cube"></i> Lambda</span><span><i class="fas fa-sliders-h"></i> Config</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Reduce timeout to 2x average duration.</p></div>
+        </div>
+        <div class="finding-card fc-low" onclick="showRemedyModal(this)" data-category="low">
+            <div class="fc-header"><span><i class="fas fa-file-alt"></i> Low: Missing Descriptions</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Security Group rules lack descriptions explaining their purpose.</div>
+            <div class="fc-meta"><span><i class="fas fa-network-wired"></i> VPC</span><span><i class="fas fa-edit"></i> Doc</span></div>
+            <div class="remedy-content-hidden"><p><strong>Remedy:</strong> Audit rules and add descriptions.</p></div>
+        </div>
+
+        <div class="finding-card fc-compliant" onclick="showRemedyModal(this)" data-category="compliant">
+            <div class="fc-header"><span><i class="fas fa-check-circle"></i> Pass: Data Residency</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">All primary storage and snapshots reside strictly within `ap-south-1`.</div>
+            <div class="fc-meta"><span><i class="fas fa-map-marker-alt"></i> India</span><span><i class="fas fa-flag"></i> RBI</span></div>
+            <div class="remedy-content-hidden"><p><strong>Status:</strong> Compliant. Region Lock enabled.</p></div>
+        </div>
+        <div class="finding-card fc-compliant" onclick="showRemedyModal(this)" data-category="compliant">
+            <div class="fc-header"><span><i class="fas fa-check-circle"></i> Pass: RBI Outsourcing</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Third-party vendors have completed annual VAPT and compliance audits.</div>
+             <div class="fc-meta"><span><i class="fas fa-file-contract"></i> Vendor</span><span><i class="fas fa-university"></i> RBI</span></div>
+             <div class="remedy-content-hidden"><p><strong>Status:</strong> Compliant. Risk Assessment filed.</p></div>
+        </div>
+         <div class="finding-card fc-compliant" onclick="showRemedyModal(this)" data-category="compliant">
+            <div class="fc-header"><span><i class="fas fa-check-circle"></i> Pass: Crisis Mgmt</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Cyber Crisis Management Plan (CCMP) is integrated with CloudWatch Alarms.</div>
+             <div class="fc-meta"><span><i class="fas fa-broadcast-tower"></i> CCMP</span><span><i class="fas fa-university"></i> RBI</span></div>
+             <div class="remedy-content-hidden"><p><strong>Status:</strong> Compliant. Automated via SSM.</p></div>
+        </div>
+        <div class="finding-card fc-compliant" onclick="showRemedyModal(this)" data-category="compliant">
+            <div class="fc-header"><span><i class="fas fa-check-circle"></i> Pass: Backup Plan</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">AWS Backup configured with Cross-Region Copy enabled.</div>
+             <div class="fc-meta"><span><i class="fas fa-hdd"></i> Backup</span><span><i class="fas fa-flag"></i> DR</span></div>
+             <div class="remedy-content-hidden"><p><strong>Status:</strong> Compliant. RPO: 15min.</p></div>
+        </div>
+        <div class="finding-card fc-compliant" onclick="showRemedyModal(this)" data-category="compliant">
+            <div class="fc-header"><span><i class="fas fa-check-circle"></i> Pass: TLS Encryption</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">ALB enforces TLS 1.2+ for all incoming traffic.</div>
+             <div class="fc-meta"><span><i class="fas fa-lock"></i> Network</span><span><i class="fas fa-check"></i> Secure</span></div>
+             <div class="remedy-content-hidden"><p><strong>Status:</strong> Compliant. Policy verified.</p></div>
+        </div>
+        <div class="finding-card fc-compliant" onclick="showRemedyModal(this)" data-category="compliant">
+            <div class="fc-header"><span><i class="fas fa-check-circle"></i> Pass: VPC Flow Logs</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">VPC Flow Logs enabled for production VPCs and sent to S3.</div>
+             <div class="fc-meta"><span><i class="fas fa-list"></i> Logging</span><span><i class="fas fa-check"></i> Audit</span></div>
+             <div class="remedy-content-hidden"><p><strong>Status:</strong> Compliant. Retention set.</p></div>
+        </div>
+        <div class="finding-card fc-compliant" onclick="showRemedyModal(this)" data-category="compliant">
+            <div class="fc-header"><span><i class="fas fa-key"></i> Pass: Vector DB Encryption</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Pinecone/ChromaDB configured with encryption at rest using KMS.</div>
+             <div class="fc-meta"><span><i class="fas fa-database"></i> RAG</span><span><i class="fas fa-lock"></i> Encrypted</span></div>
+             <div class="remedy-content-hidden"><p><strong>Status:</strong> Compliant. Keys rotated annually.</p></div>
+        </div>
+        <div class="finding-card fc-compliant" onclick="showRemedyModal(this)" data-category="compliant">
+            <div class="fc-header"><span><i class="fas fa-balance-scale"></i> Pass: AI Ethics Policy</span><i class="fas fa-external-link-alt" style="font-size:0.8rem; opacity:0.6;"></i></div>
+            <div class="fc-desc">Architecture aligns with Responsible AI Framework (Fairness & Bias checks).</div>
+             <div class="fc-meta"><span><i class="fas fa-gavel"></i> Ethics</span><span><i class="fas fa-check"></i> Policy</span></div>
+             <div class="remedy-content-hidden"><p><strong>Status:</strong> Compliant. Bias detection active.</p></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="remedyModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle"></div>
+                <button class="close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer"><button class="action-btn-modal" onclick="closeModal()">Close</button></div>
+        </div>
+    </div>
+
+    <button id="scrollTopBtn" onclick="scrollToTop()" title="Go to Top"><i class="fas fa-arrow-up"></i></button>
+
+</div>
+
+<script>
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateIcon(savedTheme);
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateIcon(newTheme);
+        updateCharts(newTheme);
+    }
+    function updateIcon(theme) { document.getElementById('themeIcon').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'; }
+    function goHome() { window.location.href = 'EAReview.html'; }
+    function goBack() { window.location.href = 'EAUpload.html'; }
+    function logout() { if(confirm("Are you sure you want to logout?")) window.location.href = 'EALogin.html'; }
+    function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    
+    // LAYOUT LOGIC
+    function setLayout(mode) {
+        const grid = document.getElementById('findingsGrid');
+        const btns = document.querySelectorAll('.layout-btn-opt');
+        
+        // Remove existing classes and active states
+        grid.classList.remove('layout-list', 'layout-dense');
+        btns.forEach(btn => btn.classList.remove('active'));
+
+        // Apply new layout
+        if (mode === 'list') {
+            grid.classList.add('layout-list');
+            btns[1].classList.add('active');
+        } else if (mode === 'dense') {
+            grid.classList.add('layout-dense');
+            btns[2].classList.add('active');
+        } else {
+            // Default Grid
+            btns[0].classList.add('active');
+        }
+        
+        // Save preference
+        localStorage.setItem('preferredLayout', mode);
+    }
+
+    // Load saved layout on init
+    const savedLayout = localStorage.getItem('preferredLayout') || 'grid';
+    setLayout(savedLayout);
+
+    // MODAL LOGIC
+    function showRemedyModal(card) {
+        const titleHTML = card.querySelector('.fc-header span').innerHTML;
+        const remedyContent = card.querySelector('.remedy-content-hidden').innerHTML;
+        const modal = document.getElementById('remedyModal');
+        
+        // Dynamic Color
+        let color = 'var(--text-primary)';
+        if(card.classList.contains('fc-critical')) color = 'var(--neon-pink)';
+        else if(card.classList.contains('fc-high')) color = 'var(--neon-orange)';
+        else if(card.classList.contains('fc-medium')) color = 'var(--neon-yellow)';
+        else if(card.classList.contains('fc-low')) color = 'var(--neon-blue)';
+        else if(card.classList.contains('fc-compliant')) color = 'var(--neon-green)';
+
+        document.getElementById('modalTitle').innerHTML = titleHTML;
+        document.getElementById('modalTitle').style.color = color;
+        document.getElementById('modalBody').innerHTML = remedyContent;
+        modal.classList.add('active');
+    }
+
+    function closeModal() { document.getElementById('remedyModal').classList.remove('active'); }
+    document.getElementById('remedyModal').addEventListener('click', (e) => { if(e.target === document.getElementById('remedyModal')) closeModal(); });
+
+    const scrollBtn = document.getElementById("scrollTopBtn");
+    window.onscroll = function() {
+        if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) { scrollBtn.style.display = "flex"; } 
+        else { scrollBtn.style.display = "none"; }
+    };
+
+    let charts = {}; 
+    function updateCharts(theme) {
+        const isDark = theme === 'dark';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+        const textColor = isDark ? '#a0aec0' : '#4a5568';
+        Chart.defaults.color = textColor;
+        Chart.defaults.borderColor = gridColor;
+        if(charts.radar) { charts.radar.options.scales.r.grid.color = gridColor; charts.radar.options.scales.r.angleLines.color = gridColor; charts.radar.options.scales.r.pointLabels.color = textColor; charts.radar.update(); }
+        if(charts.bar) { charts.bar.options.scales.x.ticks.color = textColor; charts.bar.options.scales.y.grid.color = gridColor; charts.bar.update(); }
+    }
+
+    function filterFindings(category) {
+        const cards = document.querySelectorAll('.finding-card');
+        const title = document.getElementById('findingsTitle');
+        const subtext = title.nextElementSibling;
+        
+        let color = "var(--text-primary)";
+        if(category === 'critical') color = "#ff007f";
+        else if(category === 'high') color = "#ff7b00";
+        else if(category === 'medium') color = "#ffea00";
+        else if(category === 'low') color = "#2979ff";
+        else if(category === 'compliant') color = "#00ff9d";
+
+        if (category === 'all') { 
+            title.innerHTML = 'Detailed GenAI Review Findings'; 
+            title.style.color = "var(--text-primary)"; 
+            subtext.innerHTML = '(Click Cards to View Remedy)'; 
+        } else { 
+            const displayCat = category.charAt(0).toUpperCase() + category.slice(1); 
+            title.innerHTML = `Detailed Findings: <span style="color:${color}">${displayCat}</span>`; 
+            subtext.innerHTML = '(Filtered View)'; 
+        }
+        
+        cards.forEach(card => { 
+            if (category === 'all') { 
+                card.classList.remove('hidden-card'); 
+            } else { 
+                if (card.getAttribute('data-category') === category) { 
+                    card.classList.remove('hidden-card'); 
+                } else { 
+                    card.classList.add('hidden-card'); 
+                } 
+            } 
+        });
+        document.querySelector('.findings-section-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    const isDarkInit = savedTheme === 'dark';
+    Chart.defaults.color = isDarkInit ? '#a0aec0' : '#4a5568';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.borderColor = isDarkInit ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+
+    const ctxScore = document.getElementById('scoreChart').getContext('2d');
+    const gradientScore = ctxScore.createLinearGradient(0, 0, 250, 0);
+    gradientScore.addColorStop(0, '#ff007f'); gradientScore.addColorStop(0.5, '#ffea00'); gradientScore.addColorStop(1, '#00ff9d');
+    charts.gauge = new Chart(ctxScore, { type: 'doughnut', data: { labels: ['Score', 'Remaining'], datasets: [{ data: [68, 32], backgroundColor: [gradientScore, 'rgba(128, 128, 128, 0.1)'], borderWidth: 0, borderRadius: 20, cutout: '85%' }] }, options: { responsive: true, maintainAspectRatio: false, rotation: -90, circumference: 180, plugins: { legend: { display: false }, tooltip: { enabled: false } }, layout: { padding: 0 } } });
+
+    charts.radar = new Chart(document.getElementById('radarChart'), { type: 'radar', data: { labels: ['HA & Resilience', 'Network Security', 'Encryption', 'Compliance', 'Bank Policies', 'Access Control', 'Integrations'], datasets: [{ label: 'Current Posture', data: [55, 40, 60, 75, 80, 70, 65], fill: true, backgroundColor: 'rgba(157, 0, 255, 0.2)', borderColor: '#9d00ff', pointBackgroundColor: '#00f2ff', borderWidth: 2, pointRadius: 4 }, { label: 'Target', data: [90, 95, 95, 100, 95, 90, 90], fill: true, backgroundColor: 'rgba(0, 242, 255, 0.05)', borderColor: 'rgba(0, 242, 255, 0.4)', borderWidth: 1, pointRadius: 0, borderDash: [5, 5] }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: 10 }, scales: { r: { angleLines: { color: Chart.defaults.borderColor }, grid: { color: Chart.defaults.borderColor }, pointLabels: { color: Chart.defaults.color, font: { size: 11, weight: 600 } }, ticks: { display: false, backdropColor: 'transparent' }, suggestedMin: 0, suggestedMax: 100 } }, plugins: { legend: { position: 'bottom', labels: { color: Chart.defaults.color, usePointStyle: true, boxWidth: 8, padding: 20 } } } } });
+
+    charts.severity = new Chart(document.getElementById('severityDoughnut'), { type: 'doughnut', data: { labels: ['Critical', 'High', 'Medium', 'Low'], datasets: [{ data: [5, 12, 8, 6], backgroundColor: ['#ff007f', '#ff7b00', '#ffea00', '#2979ff'], borderWidth: 0, cutout: '60%' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+
+    charts.compliance = new Chart(document.getElementById('complianceDoughnut'), { type: 'doughnut', data: { labels: ['Pass', 'Warn', 'Fail'], datasets: [{ data: [18, 4, 2], backgroundColor: ['#00ff9d', '#ffea00', '#ff007f'], borderWidth: 0, cutout: '60%' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+
+    charts.bar = new Chart(document.getElementById('barChart'), { type: 'bar', data: { labels: ['Network', 'Encr.', 'HA/DR', 'IAM', 'Policy', 'Integ.'], datasets: [ { label: 'Crit', data: [2, 1, 0, 1, 0, 0], backgroundColor: '#ff007f', barPercentage: 0.6 }, { label: 'High', data: [3, 5, 2, 2, 0, 0], backgroundColor: '#ff7b00', barPercentage: 0.6 }, { label: 'Med', data: [2, 4, 0, 3, 2, 1], backgroundColor: '#ffea00', barPercentage: 0.6 }, { label: 'Low', data: [1, 2, 0, 2, 1, 2], backgroundColor: '#2979ff', barPercentage: 0.6 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, grid: { display: false }, ticks: { color: Chart.defaults.color, font: {size: 10} } }, y: { stacked: true, beginAtZero: true, grid: { color: Chart.defaults.borderColor }, ticks: { color: Chart.defaults.color, font: {size: 10} } } }, plugins: { legend: { display: true, position: 'top', align: 'end', labels: { color: Chart.defaults.color, boxWidth: 8, usePointStyle: true, font: {size: 10} } }, tooltip: { mode: 'index', intersect: false } } } });
+</script>
+
+</body>
+</html>
