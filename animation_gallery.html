@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BFSI Enterprise Intelligence Core</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-color: #030712; /* Almost Black */
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --border: rgba(55, 65, 81, 0.5);
+            --primary: #3b82f6;   /* Blue */
+            --success: #10b981;   /* Green */
+            --warning: #f59e0b;   /* Gold/Security */
+            --purple: #8b5cf6;    /* AI */
+            --cyan: #06b6d4;      /* Azure/Cloud */
+            --glow-spread: 0 0 25px rgba(59, 130, 246, 0.3);
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(29, 78, 216, 0.15), transparent 60%),
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', sans-serif;
+            color: #f8fafc;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* --- THE STAGE --- */
+        .stage {
+            position: relative;
+            width: 1100px;
+            height: 700px;
+            /* border: 1px dashed rgba(255,255,255,0.1); Debugging border */
+        }
+
+        /* --- SVG CONNECTIONS --- */
+        .connections {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .conn-path {
+            fill: none;
+            stroke: rgba(148, 163, 184, 0.1);
+            stroke-width: 2;
+        }
+
+        .active-beam {
+            fill: none;
+            stroke-width: 3;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 4px currentColor);
+            stroke-dasharray: 10 300; /* Makes it a "packet" */
+            stroke-dashoffset: 310;   /* Hidden initially */
+            opacity: 0;
+        }
+        /* Animation classes for beams will be applied via JS */
+
+        /* --- NODES --- */
+        .node {
+            position: absolute;
+            width: 180px;
+            padding: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+            transform: translate(-50%, -50%); /* Centered on coordinates */
+        }
+
+        .node:hover { transform: translate(-50%, -55%); border-color: var(--primary); }
+
+        /* Node States */
+        .node.active {
+            border-color: var(--active-color, var(--primary));
+            box-shadow: 0 0 30px var(--active-glow, rgba(59, 130, 246, 0.2));
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .icon-box {
+            width: 50px; height: 50px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            display: grid;
+            place-items: center;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: 0.3s;
+            color: #94a3b8;
+        }
+
+        .node.active .icon-box {
+            background: var(--active-bg, rgba(59, 130, 246, 0.2));
+            color: var(--active-color, white);
+            border-color: var(--active-color, var(--primary));
+            transform: scale(1.1);
+        }
+
+        .label { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; color: #e2e8f0; }
+        .sub-label { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; }
+
+        /* --- STATUS MONITOR (BOTTOM) --- */
+        .monitor {
+            position: absolute;
+            bottom: 40px;
+            width: 600px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .loader-ring {
+            width: 24px; height: 24px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+
+        .progress-bar {
+            position: absolute;
+            bottom: 0; left: 0; height: 2px;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        /* Floating Animation for Nodes */
+        @keyframes float {
+            0%, 100% { transform: translate(-50%, -50%); }
+            50% { transform: translate(-50%, -58%); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="stage">
+        <svg class="connections">
+            <defs>
+                <linearGradient id="grad-security" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#f59e0b" stop-opacity="0" />
+                    <stop offset="50%" stop-color="#f59e0b" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+                </linearGradient>
+                <linearGradient id="grad-ai" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0" />
+                    <stop offset="50%" stop-color="#8b5cf6" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+                </linearGradient>
+            </defs>
+
+            <path id="path-1" class="conn-path" d="M 100 350 C 150 350, 200 350, 250 350" />
+            <path id="path-2" class="conn-path" d="M 250 350 C 350 350, 400 350, 550 350" />
+            
+            <path id="path-3-out" class="conn-path" d="M 550 350 C 650 350, 650 150, 850 150" />
+            <path id="path-3-in" class="conn-path" d="M 850 150 C 700 150, 650 320, 550 350" opacity="0.5" />
+
+            <path id="path-4-out" class="conn-path" d="M 550 350 C 650 350, 650 550, 850 550" />
+            <path id="path-4-in" class="conn-path" d="M 850 550 C 700 550, 650 380, 550 350" opacity="0.5" />
+
+            <path id="path-5-out" class="conn-path" d="M 550 350 C 700 350, 800 350, 950 350" />
+            <path id="path-5-in" class="conn-path" d="M 950 350 C 800 380, 700 380, 550 350" opacity="0.5" />
+
+            <path id="path-6" class="conn-path" d="M 550 350 C 400 500, 250 500, 100 350" />
+
+
+            <path id="beam-1" class="active-beam" stroke="#f59e0b" d="M 100 350 C 150 350, 200 350, 250 350" />
+            <path id="beam-2" class="active-beam" stroke="#3b82f6" d="M 250 350 C 350 350, 400 350, 550 350" />
+            
+            <path id="beam-3" class="active-beam" stroke="#06b6d4" d="M 550 350 C 650 350, 650 150, 850 150" /> <path id="beam-3r" class="active-beam" stroke="#06b6d4" d="M 850 150 C 700 150, 650 320, 550 350" /> <path id="beam-4" class="active-beam" stroke="#10b981" d="M 550 350 C 650 350, 650 550, 850 550" /> <path id="beam-4r" class="active-beam" stroke="#10b981" d="M 850 550 C 700 550, 650 380, 550 350" /> <path id="beam-5" class="active-beam" stroke="#8b5cf6" d="M 550 350 C 700 350, 800 350, 950 350" /> <path id="beam-5r" class="active-beam" stroke="#8b5cf6" d="M 950 350 C 800 380, 700 380, 550 350" /> <path id="beam-6" class="active-beam" stroke="#ffffff" d="M 550 350 C 400 500, 250 500, 100 350" /> </svg>
+
+        <div id="node-fe" class="node" style="left: 100px; top: 350px;">
+            <div class="icon-box"><i data-lucide="monitor"></i></div>
+            <div class="label">YesArcMate</div>
+            <div class="sub-label">Client Interface</div>
+        </div>
+
+        <div id="node-sec" class="node" style="left: 250px; top: 350px; --active-color: #f59e0b; --active-bg: rgba(245, 158, 11, 0.2); --active-glow: rgba(245, 158, 11, 0.3);">
+            <div class="icon-box"><i data-lucide="shield-check"></i></div>
+            <div class="label">Security GW</div>
+            <div class="sub-label">OAuth2 / WAF</div>
+        </div>
+
+        <div id="node-core" class="node" style="left: 550px; top: 350px; width: 220px; height: 160px; justify-content: center; --active-color: #3b82f6; --active-glow: rgba(59, 130, 246, 0.5);">
+            <div class="icon-box" style="width: 60px; height: 60px;"><i data-lucide="cpu"></i></div>
+            <div class="label" style="font-size: 1rem;">MAF Orchestrator</div>
+            <div class="sub-label">Workflow Engine</div>
+        </div>
+
+        <div id="node-rag" class="node" style="left: 850px; top: 150px; --active-color: #06b6d4; --active-bg: rgba(6, 182, 212, 0.2); --active-glow: rgba(6, 182, 212, 0.3);">
+            <div class="icon-box"><i data-lucide="database"></i></div>
+            <div class="label">Azure AI Search</div>
+            <div class="sub-label">Vector Embeddings</div>
+        </div>
+
+        <div id="node-pol" class="node" style="left: 850px; top: 550px; --active-color: #10b981; --active-bg: rgba(16, 185, 129, 0.2); --active-glow: rgba(16, 185, 129, 0.3);">
+            <div class="icon-box"><i data-lucide="file-check"></i></div>
+            <div class="label">Compliance</div>
+            <div class="sub-label">RBI / IS Policy</div>
+        </div>
+
+        <div id="node-llm" class="node" style="left: 950px; top: 350px; --active-color: #8b5cf6; --active-bg: rgba(139, 92, 246, 0.2); --active-glow: rgba(139, 92, 246, 0.3);">
+            <div class="icon-box"><i data-lucide="brain-circuit"></i></div>
+            <div class="label">LLM Core</div>
+            <div class="sub-label">Reasoning Engine</div>
+        </div>
+
+        <div class="monitor">
+            <div class="loader-ring"></div>
+            <div class="status-text" id="status-display">System Idle. Waiting for input...</div>
+            <div class="progress-bar" id="global-progress"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Helpers
+        const getEl = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        // Animation Logic
+        async function runAnimationLoop() {
+            // Reset
+            resetState();
+            
+            // 1. FE Upload
+            updateStatus("Initiating Secure Upload...", 10);
+            activateNode('node-fe');
+            await fireBeam('beam-1', 1000);
+
+            // 2. Security Check
+            updateStatus("Security Gateway: Verifying 2FA & Tokens...", 25);
+            activateNode('node-sec');
+            await sleep(800);
+            await fireBeam('beam-2', 1000);
+
+            // 3. Orchestrator Processing
+            updateStatus("Orchestrator: Analyzing Architecture Schema...", 40);
+            activateNode('node-core');
+            await sleep(500);
+
+            // 4. Parallel Fetch (RAG + Policy)
+            updateStatus("Azure AI: Fetching Vector Context & Policies...", 55);
+            
+            // Fire outgoing beams simultaneously
+            fireBeam('beam-3', 1000); // To RAG
+            fireBeam('beam-4', 1000); // To Policy
+            
+            await sleep(1000);
+            activateNode('node-rag');
+            activateNode('node-pol');
+            await sleep(800);
+
+            // Return beams
+            updateStatus("Context Retrieved. Aggregating Data...", 70);
+            fireBeam('beam-3r', 1000);
+            fireBeam('beam-4r', 1000);
+            await sleep(1000);
+            
+            // Deactivate peripherals, Pulse Core
+            deactivateNode('node-rag');
+            deactivateNode('node-pol');
+            pulseNode('node-core'); 
+
+            // 5. LLM Reasoning
+            updateStatus("LLM: Generating Governance Review...", 85);
+            await fireBeam('beam-5', 1000);
+            activateNode('node-llm');
+            await sleep(1500); // Thinking time
+            
+            updateStatus("Review Generated. Formulating Response...", 90);
+            await fireBeam('beam-5r', 1000);
+            deactivateNode('node-llm');
+
+            // 6. Final Return
+            updateStatus("Transmission: Sending Report to Dashboard...", 100);
+            await fireBeam('beam-6', 1500); // Slower return
+            
+            updateStatus("Process Complete. Ready.", 100);
+            await sleep(2000);
+
+            // Loop
+            runAnimationLoop();
+        }
+
+        // --- Visual Helper Functions ---
+
+        function updateStatus(text, progress) {
+            getEl('status-display').innerText = text;
+            getEl('global-progress').style.width = progress + "%";
+        }
+
+        function activateNode(id) {
+            getEl(id).classList.add('active');
+        }
+
+        function deactivateNode(id) {
+            getEl(id).classList.remove('active');
+        }
+        
+        function pulseNode(id) {
+            const node = getEl(id);
+            node.style.transform = "translate(-50%, -50%) scale(1.05)";
+            setTimeout(() => {
+                node.style.transform = "translate(-50%, -50%) scale(1)";
+            }, 200);
+        }
+
+        function resetState() {
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.active-beam').forEach(b => {
+                b.style.transition = 'none';
+                b.style.opacity = '0';
+                b.style.strokeDashoffset = '310';
+            });
+            getEl('global-progress').style.width = "0%";
+        }
+
+        // The Beam Animation
+        // This manipulates the SVG stroke-dashoffset to make the line "draw" itself and travel
+        function fireBeam(beamId, duration) {
+            return new Promise(resolve => {
+                const beam = getEl(beamId);
+                
+                // Reset styling for animation
+                beam.style.transition = `stroke-dashoffset ${duration}ms linear, opacity 0.2s`;
+                beam.style.opacity = '1';
+                
+                // Force Reflow
+                beam.getBoundingClientRect();
+
+                // Trigger Animation (Move the dash gap)
+                // We move from 310 (hidden start) to -310 (hidden end)
+                beam.style.strokeDashoffset = '-310';
+
+                // Cleanup after animation finishes
+                setTimeout(() => {
+                    beam.style.opacity = '0';
+                    // Reset position silently
+                    setTimeout(() => {
+                        beam.style.transition = 'none';
+                        beam.style.strokeDashoffset = '310';
+                    }, 200);
+                    resolve();
+                }, duration);
+            });
+        }
+
+        // Start
+        setTimeout(runAnimationLoop, 1000);
+
+    </script>
+</body>
+</html>

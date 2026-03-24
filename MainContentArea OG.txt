@@ -1,0 +1,555 @@
+import { useState, useEffect, useMemo } from "react";
+import { FileSearch, Upload, BarChart as BarChartIcon } from "lucide-react";
+import ChatInputWithUploads from "./ChatInputWithUploads";
+import { getSession, streamReview } from "@/services/AgenticService";
+import { BarChart } from "@mui/x-charts/BarChart";
+import {
+  Snackbar,
+  Alert,
+  Container,
+  Paper,
+  Typography,
+  Box,
+  Stack,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  LinearProgress, // Restored LinearProgress
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+
+function camelToNormal(str) {
+  if (!str) return "";
+  return str
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function getStatusColor(status) {
+  if (!status) return "text.primary";
+  const lower = status.toLowerCase();
+  if (lower.includes("started")) return "blue";
+  if (lower.includes("completed")) return "green";
+  if (lower.includes("success")) return "green";
+  return "red";
+}
+
+function renderMarkdown(text) {
+  if (!text) return null;
+  const parts = [];
+  let remaining = text;
+  let key = 0;
+  const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*)/;
+
+  while (remaining.length) {
+    const match = remaining.match(regex);
+    if (!match) {
+      parts.push(<span key={key++}>{remaining}</span>);
+      break;
+    }
+    const idx = match.index;
+    if (idx > 0) {
+      parts.push(<span key={key++}>{remaining.slice(0, idx)}</span>);
+    }
+    const token = match[0];
+    const content = token.replace(/\*/g, "");
+    if (token.startsWith("***")) {
+      parts.push(
+        <strong key={key++}>
+          <em>{content}</em>
+        </strong>
+      );
+    } else if (token.startsWith("**")) {
+      parts.push(<strong key={key++}>{content}</strong>);
+    } else {
+      parts.push(<em key={key++}>{content}</em>);
+    }
+    remaining = remaining.slice(idx + token.length);
+  }
+  return parts;
+}
+
+function cleanBullet(text) {
+  return text.replace(/^[-•]\s*/, "").trim();
+}
+
+function parseSuccessReview(summaryText) {
+  if (!summaryText)
+    return {
+      executive: [],
+      bestPractice: [],
+      strengths: [],
+      recommendations: [],
+    };
+  const lines = summaryText.split("\n").map((l) => l.trim());
+  const result = {
+    executive: [],
+    bestPractice: [],
+    strengths: [],
+    recommendations: [],
+  };
+  let current = "executive";
+
+  for (const line of lines) {
+    if (!line || line.startsWith("---")) continue;
+    const lower = line.toLowerCase();
+    if (lower.startsWith("# stage 1")) current = "executive";
+    else if (lower.startsWith("# stage 2")) current = "strengths";
+    else if (lower.startsWith("# stage 3")) current = "bestPractice";
+    else if (lower.startsWith("# stage 4")) current = "recommendations";
+    else if (!line.startsWith("#")) result[current].push(line);
+  }
+  return result;
+}
+
+function extractSimilarityScore(summary) {
+  if (!summary) return null;
+  const text = typeof summary === "string" ? summary : summary?.summary;
+  if (!text) return null;
+  const match = text.match(/(\d+)%/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function getSimilarityColor(score) {
+  if (score < 20) return "error";
+  if (score < 60) return "warning";
+  return "success";
+}
+
+function extractAgentScores(events) {
+  if (!events || !Array.isArray(events)) return null;
+  // Loose matching for robust data extraction
+  const evalEvent = events
+    .slice()
+    .reverse()
+    .find((e) => e?.payload?.overall);
+  return evalEvent ? evalEvent.payload.overall : null;
+}
+
+// ------------------ Main Component -----------------------
+
+const MainContentArea = ({ sessionId, onSessionCreated }) => {
+  const [sessionDetails, setSessionDetails] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(false);
+  const [toast, setToast] = useState({
+    open: false,
+    severity: "info",
+    message: "",
+  });
+
+  // Streaming State
+  const [streaming, setStreaming] = useState(false);
+  const [dots, setDots] = useState(".");
+  const [stageEvents, setStageEvents] = useState([]);
+
+  // UI State
+  const [inputVisible, setInputVisible] = useState(true);
+  const [backendReview, setBackendReview] = useState(null);
+  const [graphOpen, setGraphOpen] = useState(false);
+
+  const normalizedId =
+    typeof sessionId === "object" ? sessionId?.session_id : sessionId;
+  const isViewOnly = Boolean(normalizedId);
+
+  // ------------------ Session Loading -----------------------
+  useEffect(() => {
+    // Optimization: Skip fetch if we already have the live data for this ID
+    if (backendReview && backendReview.review_id === normalizedId) {
+      return;
+    }
+
+    if (!normalizedId) {
+      setSessionDetails(null);
+      setBackendReview(null);
+      setStageEvents([]);
+      setInputVisible(true);
+      return;
+    }
+
+    const fetchSession = async () => {
+      setLoadingSession(true);
+      try {
+        const data = await getSession(normalizedId);
+        setSessionDetails(data?.details || data || null);
+      } catch {
+        setToast({
+          open: true,
+          severity: "error",
+          message: "Failed to load session.",
+        });
+      } finally {
+        setLoadingSession(false);
+      }
+    };
+
+    fetchSession();
+  }, [normalizedId, backendReview]);
+
+  // ------------------ Animation -----------------------
+  const activeEvent = useMemo(
+    () => (stageEvents.length ? stageEvents[stageEvents.length - 1] : null),
+    [stageEvents]
+  );
+
+  useEffect(() => {
+    if (!activeEvent || !streaming) return;
+    const id = setInterval(
+      () => setDots((d) => (d.length < 5 ? d + "." : ".")),
+      400
+    );
+    return () => clearInterval(id);
+  }, [activeEvent, streaming]);
+
+  // ------------------ Send Logic -----------------------
+  const handleSend = async (message, attachments) => {
+    try {
+      setInputVisible(false);
+      const single = attachments?.[0] ?? null;
+      let metadataPayload = message?.trim()
+        ? { text_content: message.trim() }
+        : {};
+
+      if (single?.type?.includes("json")) {
+        metadataPayload = single.content;
+      } else if (
+        single?.type?.startsWith("image/") ||
+        single?.type === "application/pdf"
+      ) {
+        metadataPayload = { arch_img_url: single.content };
+      } else if (single) {
+        metadataPayload = { text_content: single.content };
+      }
+
+      setStreaming(true);
+      setStageEvents([]);
+      setBackendReview(null);
+      setSessionDetails(null);
+
+      await streamReview(
+        { metadata: metadataPayload },
+        {
+          onStage: (evt) => {
+            if (evt) setStageEvents((p) => [...p, evt]);
+          },
+          onFinal: async (result) => {
+            setBackendReview(result);
+            if (result?.review_id) onSessionCreated?.(result.review_id);
+            setToast({
+              open: true,
+              severity: "success",
+              message: "Review completed.",
+            });
+            setStreaming(false);
+          },
+          onError: () => setStreaming(false),
+        }
+      );
+    } catch {
+      setStreaming(false);
+    }
+  };
+
+  const review =
+    backendReview || sessionDetails?.details || sessionDetails || null;
+  const finalSummary = review?.summary || review?.formatting_summary || null;
+  const similarityScore = extractSimilarityScore(finalSummary);
+  const reviewLoaded = Boolean(finalSummary || review?.review_id);
+  const parsed = reviewLoaded
+    ? parseSuccessReview(
+        typeof finalSummary === "string" ? finalSummary : finalSummary?.summary
+      )
+    : null;
+
+  const agentScores = extractAgentScores(stageEvents);
+
+  return (
+    <Container
+      sx={{ display: "flex", flexDirection: "column", height: "100%", py: 2 }}
+    >
+      <Box sx={{ width: "100%", mx: "auto", flex: 1, overflowY: "auto" }}>
+        {/* Header */}
+        <Stack spacing={2} alignItems="center" sx={{ mb: 3 }}>
+          {!reviewLoaded && (
+            <>
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  bgcolor: "#eee",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <FileSearch size={32} />
+              </Box>
+              <Typography variant="h4">
+                Enterprise Architecture Review
+              </Typography>
+              {!isViewOnly && (
+                <Stack direction="row" spacing={1}>
+                  <Upload size={20} />
+                  <Typography color="text.secondary">
+                    Upload your architecture files for review
+                  </Typography>
+                </Stack>
+              )}
+            </>
+          )}
+
+          {parsed && (
+            <Paper variant="outlined" sx={{ p: 2, width: "100%" }}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="flex-start"
+              >
+                <Box sx={{ flex: 1 }}>
+                  <Typography fontWeight={600} gutterBottom>
+                    Review ID: {review?.review_id}
+                  </Typography>
+                  <Typography fontWeight={600} variant="body2" sx={{ mt: 2 }}>
+                    Executive Summary
+                  </Typography>
+                  <ul>
+                    {parsed.executive.map((l, i) => (
+                      <li key={i}>
+                        <Typography variant="body2">
+                          {renderMarkdown(cleanBullet(l))}
+                        </Typography>
+                      </li>
+                    ))}
+                  </ul>
+                </Box>
+
+                {/* Right Side: Score + Graph Icon */}
+                {similarityScore != null && (
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{ ml: 3 }}
+                  >
+                    {/* 2. Small Graph Icon Trigger */}
+                    {agentScores && (
+                      <IconButton
+                        onClick={() => setGraphOpen(true)}
+                        size="small"
+                        sx={{
+                          color: "primary.main",
+                          bgcolor: "rgba(0, 46, 220, 0.05)",
+                          border: "1px solid",
+                          borderColor: "divider",
+                          "&:hover": { bgcolor: "rgba(0, 46, 220, 0.1)" },
+                        }}
+                      >
+                        <BarChartIcon size={20} />
+                      </IconButton>
+                    )}
+
+                    {/* 1. Original Similarity Score Layout */}
+                    <Box sx={{ width: 200 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Similarity with Standard Architecture
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={similarityScore}
+                        color={getSimilarityColor(similarityScore)}
+                        sx={{ height: 8, borderRadius: 4, my: 0.5 }}
+                      />
+                      <Typography variant="caption" fontWeight="bold">
+                        {similarityScore}%
+                      </Typography>
+                    </Box>
+                  </Stack>
+                )}
+              </Stack>
+            </Paper>
+          )}
+        </Stack>
+
+        {/* Live Status */}
+        {streaming && (
+          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Review Live Status
+            </Typography>
+            {activeEvent ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="subtitle2">
+                  {camelToNormal(activeEvent.stage)} {dots}
+                </Typography>
+                <Typography
+                  sx={{
+                    color: getStatusColor(activeEvent.status),
+                    fontWeight: 600,
+                  }}
+                >
+                  {camelToNormal(activeEvent.status)}
+                </Typography>
+              </Box>
+            ) : (
+              <Typography color="text.secondary">
+                Waiting for updates…
+              </Typography>
+            )}
+          </Paper>
+        )}
+
+        {/* Details Sections */}
+        {parsed && (
+          <>
+            <Stack direction="row" spacing={2} sx={{ width: "100%" }}>
+              <Paper variant="outlined" sx={{ p: 2, width: "65%" }}>
+                <Typography fontWeight={600} variant="body2" gutterBottom>
+                  Strengths
+                </Typography>
+                <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                  {parsed.strengths.map((l, i) => (
+                    <li key={i}>
+                      <Typography variant="body2">
+                        {renderMarkdown(cleanBullet(l))}
+                      </Typography>
+                    </li>
+                  ))}
+                </Box>
+              </Paper>
+              <Paper variant="outlined" sx={{ p: 2, width: "35%" }}>
+                <Typography fontWeight={600} variant="body2" gutterBottom>
+                  Best Practices
+                </Typography>
+                <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                  {parsed.bestPractice.map((l, i) => (
+                    <li key={i}>
+                      <Typography variant="body2">
+                        {renderMarkdown(cleanBullet(l))}
+                      </Typography>
+                    </li>
+                  ))}
+                </Box>
+              </Paper>
+            </Stack>
+
+            <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+              <Typography fontWeight={600} variant="body2" gutterBottom>
+                Recommendations
+              </Typography>
+              <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                {parsed.recommendations.map((l, i) => (
+                  <li key={i}>
+                    <Typography variant="body2">
+                      {renderMarkdown(cleanBullet(l))}
+                    </Typography>
+                  </li>
+                ))}
+              </Box>
+            </Paper>
+          </>
+        )}
+      </Box>
+
+      {!isViewOnly && inputVisible && (
+        <Box sx={{ width: "70%", mx: "auto" }}>
+          <ChatInputWithUploads onSend={handleSend} disabled={streaming} />
+        </Box>
+      )}
+
+      {/* 3. GRAPH MODAL */}
+      <Dialog
+        open={graphOpen}
+        onClose={() => setGraphOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            pb: 0,
+          }}
+        >
+          <Typography variant="h6" fontWeight={700}>
+            AI Quality Metrics
+          </Typography>
+          <IconButton onClick={() => setGraphOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          {agentScores ? (
+            <Box
+              sx={{
+                width: "100%",
+                height: 400,
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <BarChart
+                xAxis={[
+                  {
+                    scaleType: "band",
+                    data: [
+                      "Accuracy",
+                      "Bias (Inv)",
+                      "Hallucination (Inv)",
+                      "Confidence",
+                    ],
+                    // categoryGapRatio: 0.6 makes bars slimmer by increasing the gap between them
+                    categoryGapRatio: 0.6,
+                  },
+                ]}
+                series={[
+                  {
+                    data: [
+                      agentScores.accuracy,
+                      agentScores.bias,
+                      agentScores.hallucination,
+                      agentScores.confidence,
+                    ],
+                    color: "#002edc", // Blue color
+                    label: "Score (1-10)",
+                  },
+                ]}
+                // Slot props to style the text inside/on the bars
+                slotProps={{
+                  barLabel: {
+                    style: { fill: "white", fontWeight: "bold", fontSize: 14 }, // White & Bold text
+                  },
+                }}
+                barLabel={(item) => item.value?.toString()}
+                height={350}
+                margin={{ top: 20, bottom: 30, left: 40, right: 10 }}
+              />
+            </Box>
+          ) : (
+            <Typography align="center" color="text.secondary">
+              No scoring data available.
+            </Typography>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={() => setToast((p) => ({ ...p, open: false }))}
+      >
+        <Alert severity={toast.severity}>{toast.message}</Alert>
+      </Snackbar>
+    </Container>
+  );
+};
+
+export default MainContentArea;

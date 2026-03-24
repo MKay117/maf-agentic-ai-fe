@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign Arch | Enterprise Architecture Governance</title>
+    <style>
+        /* --- CSS VARIABLES & THEME (Unchanged) --- */
+        :root {
+            /* Light Theme (Default) */
+            --bg-body: #f4f6f8;
+            --bg-card: #ffffff;
+            --bg-sidebar: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --primary: #0f172a;
+            /* Navy */
+            --accent: #2563eb;
+            /* Royal Blue */
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 12px;
+            --header-h: 70px;
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --bg-sidebar: #1e293b;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --primary: #ffffff;
+            --accent: #3b82f6;
+            --border: #334155;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- UTILITY --- */
+        .hidden {
+            display: none !important;
+        }
+
+        .btn {
+            cursor: pointer;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            transition: transform 0.1s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .badge.good {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .badge.bad {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        /* --- LAYOUTS --- */
+        #app {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            height: var(--header-h);
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            box-shadow: var(--shadow);
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand span {
+            color: var(--text-main);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* --- PAGE: LOGIN --- */
+        #login-page {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--bg-body) 0%, var(--border) 100%);
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            padding: 3rem;
+            border-radius: var(--radius);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-body);
+            color: var(--text-main);
+        }
+
+        .step-2 {
+            margin-top: 20px;
+            animation: fadeIn 0.5s;
+        }
+
+        /* --- PAGE: HOME (DASHBOARD) --- */
+        #home-page {
+            padding: 2rem;
+            overflow-y: auto;
+            height: calc(100vh - var(--header-h));
+        }
+
+        .hero {
+            margin-bottom: 2rem;
+        }
+
+        .hero h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .review-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2rem;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .review-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+            border-color: var(--accent);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .tags {
+            margin-top: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            background: var(--bg-body);
+            border-radius: 10px;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        /* --- PAGE: REVIEW SESSION --- */
+        #review-page {
+            display: flex;
+            height: calc(100vh - var(--header-h));
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-item {
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item:hover,
+        .history-item.active {
+            background: var(--bg-body);
+        }
+
+        .history-date {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Main Content */
+        .main-review-area {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 3rem;
+            text-align: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        /* --- NEW "MILL" LOADING ANIMATION STYLES --- */
+        #loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(var(--bg-card), 0.95);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            overflow: hidden;
+        }
+
+        .mill-container {
+            width: 400px;
+            height: 400px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* Perspective is less necessary now as we are doing vertical translation, but keeps it looking nice */
+            perspective: 1000px;
+        }
+
+        .mill-card {
+            position: absolute;
+            width: 220px;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--accent), #0f172a);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            /* Crucial: Smooth transition between states */
+            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        /* STATE 1: WAITING (Below view) */
+        .mill-card.waiting {
+            transform: translateY(150%) scale(0.8);
+            opacity: 0;
+            z-index: 1;
+        }
+
+        /* STATE 2: ACTIVE (Center stage) */
+        .mill-card.active {
+            transform: translateY(0%) scale(1);
+            opacity: 1;
+            z-index: 10;
+            box-shadow: 0 20px 40px rgba(37, 99, 235, 0.4);
+        }
+
+        /* STATE 3: DONE (Above view) */
+        .mill-card.done {
+            transform: translateY(-150%) scale(0.8);
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .step-label {
+            font-size: 0.85rem;
+            color: white;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        /* Progress Bar Styles */
+        .progress-track {
+            background: rgba(0, 0, 0, 0.3);
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #4ade80;
+            /* Green fill */
+            border-radius: 3px;
+        }
+
+        /* Trigger progress fill only when active. Duration passed via JS variable */
+        .mill-card.active .progress-fill {
+            animation: fillBar var(--prog-duration, 3s) linear forwards;
+        }
+
+        @keyframes fillBar {
+            from {
+                width: 0%;
+            }
+
+            to {
+                width: 100%;
+            }
+        }
+
+        .loading-status-text {
+            margin-top: 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            z-index: 20;
+        }
+
+        /* --- REPORT SECTION (Unchanged) --- */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .score-card {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric-val {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .analysis-box {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .analysis-box h3 {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        ul.list {
+            list-style: none;
+        }
+
+        ul.list li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+
+        ul.list li:last-child {
+            border: none;
+        }
+
+        /* Icons */
+        .icon-good {
+            color: var(--success);
+        }
+
+        .icon-bad {
+            color: var(--danger);
+        }
+
+        .icon-warn {
+            color: var(--warning);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="login-page">
+        <div class="login-card">
+            <div style="font-size: 2rem; margin-bottom: 1rem;">🏦</div>
+            <h2 style="margin-bottom: 0.5rem;">Sovereign Arch</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Enterprise Governance Portal</p>
+
+            <div id="login-step-1">
+                <input type="email" class="login-input" placeholder="Corporate ID" value="cxo@bank-corp.com">
+                <input type="password" class="login-input" placeholder="Password" value="password">
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="show2FA()">Secure
+                    Login</button>
+            </div>
+
+            <div id="login-step-2" class="step-2 hidden">
+                <p style="margin-bottom: 10px;">Enter 2FA Code sent to mobile</p>
+                <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 1rem;">
+                    <input type="text" class="login-input" style="width: 50px; text-align: center;" maxlength="1">
+                    <input type="text" class="login-input" style="width: 50px; text-align: center;" maxlength="1">
+                    <input type="text" class="login-input" style="width: 50px; text-align: center;" maxlength="1">
+                    <input type="text" class="login-input" style="width: 50px; text-align: center;" maxlength="1">
+                </div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="loginSuccess()">Verify & Enter</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="hidden">
+        <header>
+            <div class="brand" onclick="goHome()" style="cursor: pointer;">
+                🏦 <span>Sovereign Arch</span>
+            </div>
+            <div class="controls">
+                <button class="btn btn-outline" onclick="toggleTheme()">🌗 Theme</button>
+                <div
+                    style="width: 40px; height: 40px; background: #ddd; border-radius: 50%; display: grid; place-items: center; font-weight: bold;">
+                    CX</div>
+            </div>
+        </header>
+
+        <main id="home-page">
+            <div class="hero">
+                <h1>Welcome, Chief Architect</h1>
+                <p style="color: var(--text-muted);">Select a governance review protocol below.</p>
+            </div>
+
+            <div class="grid-container">
+                <div class="review-card" onclick="openReview('Basic Compliance Check')">
+                    <div class="card-icon">📄</div>
+                    <div class="card-title">Basic Policy Review</div>
+                    <div class="card-desc">Standard LLM analysis against RBI guidelines and IS policies. Upload JSON,
+                        PDF, or Docx.</div>
+                    <div class="tags"><span class="tag">Quick</span><span class="tag">Static Analysis</span></div>
+                </div>
+                <div class="review-card" onclick="openReview('Contextual RAG Audit')">
+                    <div class="card-icon">🧠</div>
+                    <div class="card-title">RAG Architecture Audit</div>
+                    <div class="card-desc">Retrieval Augmented Generation using internal bank documentation vectors.
+                        Context-aware.</div>
+                    <div class="tags"><span class="tag">Deep Context</span><span class="tag">Vector DB</span></div>
+                </div>
+                <div class="review-card" onclick="openReview('Graph Knowledge Review')">
+                    <div class="card-icon">🕸️</div>
+                    <div class="card-title">Graph Knowledge Review</div>
+                    <div class="card-desc">Analyzes dependencies and hidden relationships in API changes using Knowledge
+                        Graphs.</div>
+                    <div class="tags"><span class="tag">Relationships</span><span class="tag">Impact Analysis</span>
+                    </div>
+                </div>
+                <div class="review-card" onclick="openReview('Multi-Agent Governance')">
+                    <div class="card-icon">🤖</div>
+                    <div class="card-title">Autonomous Orchestrator</div>
+                    <div class="card-desc">Planner & Executor agents simulate attacks and policy breaches on proposed
+                        changes.</div>
+                    <div class="tags"><span class="tag">Agentic</span><span class="tag">Simulation</span></div>
+                </div>
+            </div>
+        </main>
+
+        <div id="review-page" class="hidden">
+            <aside class="sidebar">
+                <h4
+                    style="margin-bottom: 1rem; color: var(--text-muted); text-transform: uppercase; font-size: 0.8rem;">
+                    Previous Sessions</h4>
+                <div class="history-item">
+                    <div>
+                        <div style="font-weight: 600;">API-Gateway-v2</div>
+                        <div class="history-date">Yesterday, 14:00</div>
+                    </div>
+                    <span class="badge good">98%</span>
+                </div>
+                <div class="history-item">
+                    <div>
+                        <div style="font-weight: 600;">Legacy-Core-Mig</div>
+                        <div class="history-date">Jan 10, 09:30</div>
+                    </div>
+                    <span class="badge bad">45%</span>
+                </div>
+                <div class="history-item">
+                    <div>
+                        <div style="font-weight: 600;">Forex-Module-Update</div>
+                        <div class="history-date">Jan 08, 16:15</div>
+                    </div>
+                    <span class="badge good">89%</span>
+                </div>
+                <div style="margin-top: auto;">
+                    <button class="btn btn-outline" style="width: 100%;" onclick="goHome()">← Back to Dashboard</button>
+                </div>
+            </aside>
+
+            <div class="main-review-area">
+                <h2 id="current-review-title" style="margin-bottom: 2rem;">Review Session</h2>
+
+                <div id="upload-state">
+                    <div class="upload-zone" onclick="startAnalysis()">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">☁️</div>
+                        <h3>Upload Architecture Document</h3>
+                        <p>Drag & drop or click to upload JSON, YAML, PDF, or Excel</p>
+                        <p style="font-size: 0.8rem; margin-top: 1rem; color: var(--accent);">Compatible with Swagger,
+                            OpenAPI 3.0, Draw.io XML</p>
+                    </div>
+                </div>
+
+                <div id="loading-overlay" class="hidden">
+                    <div class="mill-container">
+                        <div class="mill-card waiting" id="step-card-1">
+                            <div class="step-label">1. Validating Input & File Integrity</div>
+                            <div class="progress-track">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                        <div class="mill-card waiting" id="step-card-2">
+                            <div class="step-label">2. Processing Image & Document OCR</div>
+                            <div class="progress-track">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                        <div class="mill-card waiting" id="step-card-3">
+                            <div class="step-label">3. Fetching Architecture Context (RAG)</div>
+                            <div class="progress-track">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                        <div class="mill-card waiting" id="step-card-4">
+                            <div class="step-label">4. Comparing vs Market Standards & RBI</div>
+                            <div class="progress-track">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                        <div class="mill-card waiting" id="step-card-5">
+                            <div class="step-label">5. Formatting & Structuring Response</div>
+                            <div class="progress-track">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                        <div class="mill-card waiting" id="step-card-6">
+                            <div class="step-label">6. Scoring Confidence & Bias Metrics</div>
+                            <div class="progress-track">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="loading-status-text">Orchestrating Governance Review...</div>
+                </div>
+
+                <div id="result-state" class="hidden">
+                    <div class="report-header">
+                        <div>
+                            <h3>Analysis Complete</h3>
+                            <p class="history-date">File: payment-gateway-schema.json</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="resetReview()">New Review</button>
+                    </div>
+
+                    <div class="score-card">
+                        <div class="metric">
+                            <div class="metric-val" style="color: var(--accent);">87/100</div>
+                            <div class="metric-label">Compliance Score</div>
+                        </div>
+                        <div class="metric" style="border-left: 1px solid var(--border); padding-left: 2rem;">
+                            <div class="metric-val">99.2%</div>
+                            <div class="metric-label">Accuracy</div>
+                        </div>
+                        <div class="metric" style="border-left: 1px solid var(--border); padding-left: 2rem;">
+                            <div class="metric-val" style="color: var(--success);">Low</div>
+                            <div class="metric-label">Hallucination Risk</div>
+                        </div>
+                        <div class="metric" style="border-left: 1px solid var(--border); padding-left: 2rem;">
+                            <div class="metric-val" style="color: var(--warning);">Medium</div>
+                            <div class="metric-label">Bias Detected</div>
+                        </div>
+                    </div>
+
+                    <div class="analysis-grid">
+                        <div class="analysis-box">
+                            <h3 class="icon-good">✅ Compliant Aspects</h3>
+                            <ul class="list">
+                                <li><span>Encryption at rest (AES-256) is enforced.</span></li>
+                                <li><span>OAuth 2.0 flow is correctly implemented.</span></li>
+                                <li><span>Audit logs are routed to immutable storage.</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="analysis-box">
+                            <h3 class="icon-bad">❌ Critical Violations</h3>
+                            <ul class="list">
+                                <li><span>Port 8080 exposed publicly (Violation of IS-Pol-99).</span></li>
+                                <li><span>Hardcoded API Key found in schema example.</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="analysis-box">
+                            <h3 class="icon-warn">⚠️ Recommendations</h3>
+                            <ul class="list">
+                                <li>Implement Rate Limiting on /auth/login endpoint.</li>
+                                <li>Update TLS version from 1.2 to 1.3 for future proofing.</li>
+                            </ul>
+                        </div>
+
+                        <div class="analysis-box">
+                            <h3>🚀 Immediate Actions</h3>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button class="btn btn-primary" style="font-size: 0.8rem;">Auto-Fix YAML</button>
+                                <button class="btn btn-outline" style="font-size: 0.8rem;">Create Jira Ticket</button>
+                                <button class="btn btn-outline" style="font-size: 0.8rem;">Reject Deployment</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management (Unchanged)
+        function show2FA() {
+            document.getElementById('login-step-1').classList.add('hidden');
+            document.getElementById('login-step-2').classList.remove('hidden');
+        }
+
+        function loginSuccess() {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+        }
+
+        function goHome() {
+            document.getElementById('home-page').classList.remove('hidden');
+            document.getElementById('review-page').classList.add('hidden');
+            resetReview();
+        }
+
+        function openReview(title) {
+            document.getElementById('home-page').classList.add('hidden');
+            document.getElementById('review-page').classList.remove('hidden');
+            document.getElementById('current-review-title').innerText = title;
+        }
+
+        // --- UPDATED ANIMATION SEQUENCER ---
+        let currentStepIndex = 0; // Start at 0 for array indexing
+        let stepTimer = null;
+        const totalCards = 6;
+        // Durations in MS. First gets 7s, others get 3-4s.
+        const stepDurations = [7000, 3000, 3000, 4000, 3000, 3000];
+
+        function startAnalysis() {
+            const upload = document.getElementById('upload-state');
+            const loader = document.getElementById('loading-overlay');
+            const results = document.getElementById('result-state');
+
+            upload.classList.add('hidden');
+            results.classList.add('hidden');
+            loader.classList.remove('hidden');
+
+            // Reset sequencer state
+            currentStepIndex = 0;
+            document.querySelectorAll('.mill-card').forEach(c => {
+                c.classList.remove('active', 'done');
+                c.classList.add('waiting');
+                // Reset progress bar fill animation
+                const fill = c.querySelector('.progress-fill');
+                fill.style.animation = 'none';
+                fill.offsetHeight; /* trigger reflow to restart animation next time */
+                fill.style.animation = null;
+            });
+
+            // Start the sequence
+            runStepSequencer();
+        }
+
+        function runStepSequencer() {
+            // 1. Check if sequence finished
+            if (currentStepIndex >= totalCards) {
+                // Add a small buffer after last card finishes before showing results
+                setTimeout(finishAnalysis, 1000);
+                return;
+            }
+
+            // 2. Identify Cards
+            const activeCardId = `step-card-${currentStepIndex + 1}`;
+            const prevCardId = `step-card-${currentStepIndex}`; // Id index is 1-based
+
+            const activeCard = document.getElementById(activeCardId);
+            const prevCard = document.getElementById(prevCardId);
+
+            // 3. Update States based on vertical mill logic
+            if (prevCard) {
+                prevCard.classList.remove('active');
+                prevCard.classList.add('done'); // Moves up and out
+            }
+
+            if (activeCard) {
+                activeCard.classList.remove('waiting');
+                // Set the specific duration for this step's progress bar
+                const duration = stepDurations[currentStepIndex];
+                activeCard.style.setProperty('--prog-duration', `${duration}ms`);
+
+                // Force reflow to ensure transition happens
+                void activeCard.offsetWidth;
+                activeCard.classList.add('active'); // Moves to center, starts progress bar
+            }
+
+            // 4. Schedule next step based on current step's duration
+            const currentDuration = stepDurations[currentStepIndex];
+            // Add a small buffer (e.g., 800ms) to allow for CSS transition times between positions
+            stepTimer = setTimeout(() => {
+                currentStepIndex++;
+                runStepSequencer();
+            }, currentDuration + 800);
+        }
+
+        function finishAnalysis() {
+            clearTimeout(stepTimer);
+            document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('result-state').classList.remove('hidden');
+        }
+
+        function resetReview() {
+            clearTimeout(stepTimer);
+            currentStepIndex = 0;
+            document.querySelectorAll('.mill-card').forEach(c => {
+                c.classList.remove('active', 'done');
+                c.classList.add('waiting');
+            });
+            document.getElementById('upload-state').classList.remove('hidden');
+            document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('result-state').classList.add('hidden');
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        }
+    </script>
+</body>
+
+</html>
