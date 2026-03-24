@@ -1,0 +1,42 @@
+:root {
+  /* Brand Colors */
+  --primary-blue: #004a80; /* Yes Bank Blue */
+  --primary-dark: #003359;
+  --secondary-red: #d32f2f; /* Yes Bank Red Accents */
+  
+  /* Backgrounds */
+  --bg-body: #f5f7fa; /* Light Enterprise Gray */
+  --bg-card: #ffffff;
+  
+  /* Text */
+  --text-primary: #172b4d;
+  --text-secondary: #5e6c84;
+  
+  /* Spacing */
+  --header-height: 64px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar Polish */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
